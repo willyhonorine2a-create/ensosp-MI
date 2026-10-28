@@ -60,3 +60,11 @@ ASTECH. Les champs patrimoniaux sont optionnels dans ce prototype, même si la
 trame impose certains champs lors d'un import ASTECH. Les limites de longueur
 des nouveaux champs reprennent celles de la trame. Le statut de disponibilité
 est distinct du champ État du bien.
+
+## Préparation Supabase
+
+Le schéma sécurisé et le convertisseur Excel vers SQL sont disponibles. Voir
+[les instructions Supabase](docs/supabase.md). Les fichiers SQL contenant les
+biens restent privés hors du dépôt et du site compilé. L'installation distante
+et le raccordement de l'interface sont deux étapes distinctes ; l'interface
+utilise encore le stockage local.
