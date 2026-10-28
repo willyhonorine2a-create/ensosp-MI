@@ -10,6 +10,10 @@ export const fields = [
  ['assignedAt','Début d’affectation','DAT_DEB_AFFECT',10,'date'],['warrantyUntil','Fin de garantie','DATGARANTIE',10,'date'],
  ['notes','Observations','OBS',512,'textarea']
 ];
+// Données historiques conservées en base, retirées de la saisie patrimoniale.
+const hiddenIdentificationFields = new Set(['assetCode','barcode','service','serviceName','condition']);
+export const identificationFields = fields.filter(([name]) => !hiddenIdentificationFields.has(name));
+
 export function validateAsset(item, items, editingId, {allowMissingIdentifiers = false, allowDuplicateReference = false} = {}) {
  if (!item.name || (!allowMissingIdentifiers && (!item.reference || !item.location))) throw Error('Renseignez la désignation, la référence et l’emplacement.');
  if (item.name.length > 100 || item.reference.length > 40 || item.location.length > 80) throw Error('Un champ dépasse la longueur autorisée.');

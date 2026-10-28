@@ -1,5 +1,5 @@
 import {moveStock} from './stock.js';
-import {fields,validateAsset} from './patrimoine.js';
+import {fields,identificationFields,validateAsset} from './patrimoine.js';
 const $ = id => document.getElementById(id);
 import {createClient} from '@supabase/supabase-js';
 import {supabaseUrl,supabasePublishableKey} from './config.js';
@@ -10,7 +10,7 @@ const client=createClient(supabaseUrl,supabasePublishableKey,{
 });
 const repository=createRepository(client);
 let session=null, revision=0, pendingMovement=null, inventoryAction=null;
-for (const [name,label,code,max,type] of fields) {
+for (const [name,label,code,max,type] of identificationFields) {
   const wrapper = document.createElement('label'); wrapper.textContent = label;
   const input = document.createElement(type === 'textarea' ? 'textarea' : 'input');
   input.name=name; input.maxLength=max; if(type === 'date') input.type='date';
@@ -163,7 +163,7 @@ $('itemForm').onsubmit = async event => {
   const item = {...previous,id:editingId || crypto.randomUUID(),name:data.get('name').trim(),reference:data.get('reference').trim(),location:data.get('location').trim(),stock:previous ? previous.stock : Number(data.get('stock')),minimum:Number(data.get('minimum'))};
   item.category=String(data.get('category') || '');
   item.categoryName=state.categories?.find(c=>c.code===item.category)?.label || '';
-  for(const [key] of fields) item[key]=String(data.get(key) || '').trim();
+  for(const [key] of identificationFields) item[key]=String(data.get(key) || '').trim();
   try {
     validateAsset(item,state.items,editingId,{allowMissingIdentifiers:true,allowDuplicateReference:true});
     if(!state.categories?.some(c=>c.code===item.category)) throw Error('Choisissez une catégorie du catalogue.');
