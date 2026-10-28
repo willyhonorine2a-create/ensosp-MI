@@ -30,3 +30,12 @@ Pas de connexion utilisateur, de sauvegarde serveur ni de connexion Supabase à 
 stade. Réserver cette version à la démonstration ; la gestion réelle nécessitera
 Supabase, des droits d'accès et des mouvements transactionnels côté base de données.
 Ne jamais placer de mot de passe ou de clé Supabase secrète dans le code client.
+
+## Previews et production
+
+Les développements sont publiés sur `develop` ou une branche de fonctionnalité.
+Avec l'intégration Git Vercel activée et `main` comme branche de production,
+ces branches produisent des déploiements Preview. La mise en production est
+réservée à l'utilisateur, par promotion manuelle d'une preview validée dans Vercel.
+Ne pas pousser ou fusionner dans `main` pendant cette phase : cela déclencherait
+normalement une production automatique. La production existante reste en place.
