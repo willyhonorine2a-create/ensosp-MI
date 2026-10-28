@@ -123,8 +123,13 @@ create trigger stock_asset_classification before insert or update on public.stoc
 for each row execute function public.validate_stock_classification();
 commit;
 -- Les lignes retournées ci-dessous sont à rapprocher manuellement ; aucun code n'est modifié.
-select genre,category,subcategory,count(*) as biens_a_verifier from public.stock_assets a
-where (nullif(genre,'') is not null and not exists(select 1 from public.stock_genres g where g.code=a.genre))
-or (nullif(category,'') is not null and not exists(select 1 from public.stock_categories c where c.genre_code=a.genre and c.code=a.category))
-or (nullif(subcategory,'') is not null and not exists(select 1 from public.stock_subcategories s where s.genre_code=a.genre and s.category_code=a.category and s.code=a.subcategory))
-group by genre,category,subcategory order by genre,category,subcategory;
+select a.genre,a.category,a.subcategory,count(*) as biens_a_verifier
+from public.stock_assets a
+left join public.stock_genres g on g.code=a.genre
+left join public.stock_categories c on c.genre_code=a.genre and c.code=a.category
+left join public.stock_subcategories s on s.genre_code=a.genre and s.category_code=a.category and s.code=a.subcategory
+where (nullif(a.genre,'') is not null and g.code is null)
+   or (nullif(a.category,'') is not null and c.code is null)
+   or (nullif(a.subcategory,'') is not null and s.code is null)
+group by a.genre,a.category,a.subcategory
+order by a.genre,a.category,a.subcategory;

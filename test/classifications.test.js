@@ -26,7 +26,8 @@ test('la migration relie les classifications, protège les droits et conserve le
   const good=(await db.query("insert into stock_assets(designation,genre,category,subcategory,quantity) values ('Batterie','EEE','ECA','BAT',7) returning id")).rows[0].id;
   const legacy=(await db.query("insert into stock_assets(designation,genre,category,subcategory,quantity,import_key) values ('Caméra','EQT','ECA','CAM',6,'fixture:1') returning id")).rows[0].id;
   const sql=await readFile(new URL('../supabase/migrations/003_classifications.sql',import.meta.url),'utf8');
-  await db.exec(sql);await db.exec(sql);
+  const audit=await db.exec(sql);await db.exec(sql);
+  assert.deepEqual(audit.at(-1).rows.map(r=>({...r,biens_a_verifier:Number(r.biens_a_verifier)})),[{genre:'EQT',category:'ECA',subcategory:'CAM',biens_a_verifier:1}]);
   await db.query("insert into stock_assets(designation,genre,category,subcategory,quantity,import_key) values ('Caméra','EQT','ECA','CAM',999,'fixture:1') on conflict(import_key) do nothing");
   assert.equal((await db.query('select count(*)::int as n from stock_genres')).rows[0].n,5);
   assert.equal((await db.query('select count(*)::int as n from stock_categories')).rows[0].n,9);
