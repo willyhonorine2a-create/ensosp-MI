@@ -1,9 +1,7 @@
 // Champs inspirés des colonnes de la trame ASTECH_Import.
 export const fields = [
  ['assetCode','Code du bien','CODE_BIEN',25],['shortName','Nom court','NOMCOURT',30],
- ['genre','Genre (code)','GENRE',5],['category','Catégorie (code)','CATEG',10],
- ['categoryName','Désignation catégorie','CATEG_DES',50],['subcategory','Sous-catégorie (code)','SOUSCAT',10],
- ['subcategoryName','Désignation sous-catégorie','SOUSCAT_DES',50],['serial','N° de série','NOSERIE',30],
+['serial','N° de série','NOSERIE',30],
  ['barcode','Code-barres','CODBAR',25],['service','Service d’affectation (code)','COD_SERV',7],
  ['serviceName','Désignation du service','COD_SERV_DES',30],['condition','État du bien (code)','ETAT',2],
  ['supplier','Fournisseur (code)','CODFOURN',10],['manager','Service gestionnaire (code)','SERVGEST',7],

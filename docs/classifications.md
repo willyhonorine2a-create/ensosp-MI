@@ -1,3 +1,5 @@
+> Configuration actuelle : [catégories simples et photos](categories-photos.md). Les genres et sous-catégories décrits ci-dessous sont historiques. Ne pas réappliquer les migrations 003/004 après 005.
+
 # Référentiel du magasin
 
 Source : document fourni « Classifications magasin.docx ». Les libellés ont été

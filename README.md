@@ -1,7 +1,7 @@
 # ENSOSP — Magasin incendie
 
 Application en français : connexion Supabase, inventaire partagé, fiches
-patrimoniales, recherche, filtres, seuils et historique des entrées/sorties.
+patrimoniales avec photo, catégories simples, recherche, filtres, seuils et historique des entrées/sorties.
 Les données importées sans référence ou lieu restent affichables et modifiables
 sans inventer de valeurs. Les quantités initiales par défaut sont signalées.
 
@@ -26,7 +26,7 @@ python3 -m unittest discover -s test -p 'test_*.py' -v
 ## Supabase
 
 Voir [l'installation et la création des accès](docs/supabase.md). Exécuter les
-migrations 001 puis 002 dans le SQL Editor du projet de test. L'interface exige
+migrations 001, 002, 005 et 006 dans le SQL Editor du projet de test. L'interface exige
 un compte Supabase Auth autorisé dans stock_members. Il n'y a pas d'inscription
 libre dans l'application. Le compte du tableau de bord Supabase est indépendant.
 
@@ -61,8 +61,12 @@ Il ne s'agit pas d'une connexion au logiciel ASTECH. Les codes sont libres ; les
 référentiels externes, champs de carte grise et compteurs ne sont pas gérés par
 les formulaires. Les colonnes d'origine restent conservées dans source_data.
 
-## Genres, catégories et sous-catégories
+## Catégories simples et photos
 
-Exécuter la migration `003_classifications.sql` pour relier les listes aux
-référentiels en base. Voir [les règles de classement](docs/classifications.md)
-pour les codes retenus et les anciennes classifications à vérifier.
+Le classement actif utilise les 12 catégories fournies, sans genre ni sous-catégorie.
+Le bouton Gérer les catégories permet de créer un code pour les nouveaux matériels.
+Chaque fiche permet d'ajouter, remplacer ou retirer une photo (JPEG/PNG/WebP, 5 Mo).
+Voir [la configuration des catégories et photos](docs/categories-photos.md) pour
+les migrations 005/006, les scripts courts à exécuter dans Supabase et le
+rapprochement privé avec le nouveau classeur. Les stocks et historiques existants
+sont préservés ; le regroupement des anciennes lignes reste à valider.

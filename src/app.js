@@ -4,7 +4,7 @@ const $ = id => document.getElementById(id);
 import {createClient} from '@supabase/supabase-js';
 import {supabaseUrl,supabasePublishableKey} from './config.js';
 import {createRepository} from './data.js';
-import {classificationLabel,classificationIssue,classificationChoices} from './classifications.js';
+import {validatePhoto} from './photos.js';
 const client=createClient(supabaseUrl,supabasePublishableKey,{
  auth:{persistSession:true,storage:sessionStorage,detectSessionInUrl:false}
 });
@@ -12,18 +12,17 @@ const repository=createRepository(client);
 let session=null, revision=0, pendingMovement=null;
 for (const [name,label,code,max,type] of fields) {
   const wrapper = document.createElement('label'); wrapper.textContent = label;
-  const input = document.createElement(['genre','category','subcategory'].includes(name) ? 'select' : type === 'textarea' ? 'textarea' : 'input');
-  if(['categoryName','subcategoryName'].includes(name)) input.readOnly=true;
+  const input = document.createElement(type === 'textarea' ? 'textarea' : 'input');
   input.name=name; input.maxLength=max; if(type === 'date') input.type='date';
   wrapper.append(input); const hint=document.createElement('small'); hint.textContent=code; wrapper.append(hint);
   $('assetFields').append(wrapper);
 }
-let editingId = null, originalClassification=null;
+let editingId = null, pendingPhoto=null, previewObjectUrl=null;
 let state = {items:[],history:[]};
 function clearInventory() {
  revision++; state={items:[],history:[]}; render();
  $('workspace').hidden=true; $('loginPanel').hidden=false;
- $('itemDialog').close(); $('moveDialog').close();
+ $('itemDialog').close(); $('moveDialog').close(); $('categoryDialog').close();
 }
 async function refresh() {
  if(!session) return;
@@ -63,60 +62,65 @@ function element(tag, text, className) {
   if (className) el.className = className;
   return el;
 }
-function fillFilter(id,key,level,genre='',category='') {
- const control=$(id), previous=control.value;
- const options=new Map(classificationChoices(state.classifications,level,genre,category).map(row=>[row.code,`${row.code} · ${row.label}`]));
- for(const item of state.items) {
-  if((!genre || item.genre===genre) && (!category || item.category===category) && item[key] && !options.has(item[key])) options.set(item[key],`${item[key]} · Hors référentiel`);
- }
- control.replaceChildren(new Option('Tous',''));
- [...options].sort(([a],[b])=>a.localeCompare(b,'fr')).forEach(([value,label])=>control.add(new Option(label,value)));
- control.value=options.has(previous)?previous:'';
+function categoryLabel(code) {
+ const row=state.categories?.find(c=>c.code===code);
+ return row ? `${row.code} · ${row.label}` : code ? `${code} · À classer` : 'À classer';
 }
-function populateClassification(item) {
- const form=$('itemForm');
- for(const [key,level] of [['genre','genres'],['category','categories'],['subcategory','subcategories']]) {
-  const control=form.elements[key];
-  const rows=key==='genre' ? classificationChoices(state.classifications,level) : !item.genre || (key==='subcategory' && !item.category) ? [] : classificationChoices(state.classifications,level,item.genre,key==='subcategory'?item.category:'');
-  control.replaceChildren(new Option('Non renseigné',''));
-  rows.forEach(row=>control.add(new Option(`${row.code} · ${row.label}`,row.code)));
-  const legacyAllowed=originalClassification && (key==='genre' || item.genre===originalClassification.genre) && (key!=='subcategory' || item.category===originalClassification.category);
-  if(item[key] && !rows.some(r=>r.code===item[key]) && legacyAllowed) control.add(new Option(`${item[key]} · Hors référentiel (existant)`,item[key]));
-  control.value=[...control.options].some(o=>o.value===item[key])?item[key]:'';
-  control.disabled=key!=='genre' && rows.length===0 && !control.value;
- }
- for(const [key,level,target] of [['category','categories','categoryName'],['subcategory','subcategories','subcategoryName']]) {
-  const row=classificationChoices(state.classifications,level,item.genre,item.category).find(r=>r.code===item[key]);
-  form.elements[target].value=row?.label || (originalClassification && item.genre===originalClassification.genre && item.category===originalClassification.category && item.subcategory===originalClassification.subcategory ? originalClassification[target] || '' : '');
- }
+function fillCategories(control,value='',emptyLabel='Toutes les catégories') {
+ control.replaceChildren(new Option(emptyLabel,''));
+ (state.categories || []).forEach(row=>control.add(new Option(`${row.code} · ${row.label}`,row.code)));
+ control.value=[...control.options].some(o=>o.value===value) ? value : '';
 }
-$('itemForm').elements.genre.onchange=()=>populateClassification({genre:$('itemForm').elements.genre.value});
-$('itemForm').elements.category.onchange=()=>populateClassification({genre:$('itemForm').elements.genre.value,category:$('itemForm').elements.category.value});
-$('itemForm').elements.subcategory.onchange=()=>populateClassification({genre:$('itemForm').elements.genre.value,category:$('itemForm').elements.category.value,subcategory:$('itemForm').elements.subcategory.value});
+function showPhoto(url) {
+ if(previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); previewObjectUrl=null; }
+ $('photoPreview').hidden=!url;
+ if(url) $('photoPreview').src=url; else $('photoPreview').removeAttribute('src');
+}
+$('photoFile').onchange=async()=>{
+ pendingPhoto=null; $('itemError').textContent='';
+ const file=$('photoFile').files[0];
+ if(!file) {showPhoto(state.items.find(i=>i.id===editingId)?.photoUrl || '');return;}
+ try {
+  await validatePhoto(file);
+  showPhoto(''); previewObjectUrl=URL.createObjectURL(file);
+  $('photoPreview').src=previewObjectUrl; $('photoPreview').hidden=false; $('removePhoto').checked=false;
+ } catch(e) { $('photoFile').value=''; showPhoto(''); $('itemError').textContent=e.message; }
+};
+$('removePhoto').onchange=()=>{
+ if($('removePhoto').checked) { $('photoFile').value='';pendingPhoto=null;showPhoto(''); }
+ else showPhoto(state.items.find(i=>i.id===editingId)?.photoUrl || '');
+};
+$('itemDialog').addEventListener('close',()=>showPhoto(''));
 function render() {
   $('references').textContent = state.items.length;
   $('units').textContent = state.items.reduce((sum,i) => sum + i.stock,0);
   $('alerts').textContent = state.items.filter(i => i.stock <= i.minimum).length;
   $('defaultQuantities').textContent=state.items.filter(i => i.quantityDefaulted).length;
-  $('classificationWarnings').textContent=state.classifications ? `${state.items.filter(i=>classificationIssue(state.classifications,i)).length} biens avec un classement hors référentiel à vérifier.` : '';
-  fillFilter('genreFilter','genre','genres');
-  fillFilter('categoryFilter','category','categories',$('genreFilter').value);
-  fillFilter('subcategoryFilter','subcategory','subcategories',$('genreFilter').value,$('categoryFilter').value);
+  const unclassified=state.items.filter(i=>!state.categories?.some(c=>c.code===i.category)).length;
+  $('classificationWarnings').textContent=unclassified ? `${unclassified} matériels à classer dans une catégorie.` : '';
+  fillCategories($('categoryFilter'),$('categoryFilter').value);
+  $('categoryRows').replaceChildren();
+  (state.categories || []).forEach(c=>{const tr=document.createElement('tr');tr.append(element('td',c.code),element('td',c.label));$('categoryRows').append(tr);});
   const services=$('serviceFilter'), previousService=services.value;
   services.replaceChildren(new Option('Tous',''));
   [...new Set(state.items.map(i=>i.service).filter(Boolean))].sort().forEach(v=>services.add(new Option(v,v)));
   services.value=[...services.options].some(o=>o.value===previousService)?previousService:'';
   const query = $('search').value.toLocaleLowerCase('fr');
-  const visible = state.items.filter(i => [i.name,i.reference,i.location,...fields.map(([key]) => i[key] || ''),...['genres','categories','subcategories'].map(level=>classificationLabel(state.classifications,level,i))].join(' ').toLocaleLowerCase('fr').includes(query) && [['genreFilter','genre'],['categoryFilter','category'],['subcategoryFilter','subcategory'],['serviceFilter','service']].every(([id,key]) => !$(id).value || i[key] === $(id).value) && (!$('onlyAlerts').checked || i.stock <= i.minimum));
+  const visible = state.items.filter(i => [i.name,i.reference,i.location,...fields.map(([key]) => i[key] || ''),categoryLabel(i.category)].join(' ').toLocaleLowerCase('fr').includes(query) && [['categoryFilter','category'],['serviceFilter','service']].every(([id,key]) => !$(id).value || i[key] === $(id).value) && (!$('onlyAlerts').checked || i.stock <= i.minimum));
   $('inventory').replaceChildren();
   visible.forEach(i => {
     const tr = document.createElement('tr');
     const name=element('td',i.name); name.append(element('small',i.assetCode ? `Code : ${i.assetCode}` : 'Code du bien non renseigné'));
-    const classification=element('td',classificationLabel(state.classifications,'genres',i) || (i.genre ? `${i.genre} · Hors référentiel` : 'Non classé'));
-    classification.append(element('small',[classificationLabel(state.classifications,'categories',i) || i.category,classificationLabel(state.classifications,'subcategories',i) || i.subcategory].filter(Boolean).join(' / ') || 'Sans catégorie'));
-    if(classificationIssue(state.classifications,i)) classification.append(element('small','Classement à vérifier','classification-warning'));
+    const classification=element('td',categoryLabel(i.category));
     const location=element('td',i.location || 'Non renseigné'); location.append(element('small',i.service ? `Service : ${i.service}` : 'Service non renseigné'));
-    tr.append(name,element('td',i.reference || '—'),classification,location);
+    const photo=document.createElement('td');
+    if(i.photoUrl) {
+     const button=element('button','','photo-button');button.setAttribute('aria-label',`Voir la photo de ${i.name}`);
+     const img=document.createElement('img');img.src=i.photoUrl;img.alt=`Photo : ${i.name}`;img.loading='lazy';img.className='stock-photo';
+     img.onerror=()=>{button.replaceChildren(element('span','Photo indisponible'));};
+     button.append(img);button.onclick=()=>openAsset(i);photo.append(button);
+    } else photo.append(element('span',i.photoUnavailable ? 'Photo indisponible' : '—'));
+    tr.append(photo,name,element('td',i.reference || '—'),classification,location);
     const stock = element('td',String(i.stock)); stock.append(element('small',`Seuil : ${i.minimum}`)); if(i.quantityDefaulted) stock.append(element('small','Quantité initiale par défaut : 1'));  tr.append(stock);
     const status = document.createElement('td'); status.append(element('span',i.stock === 0 ? 'Rupture' : i.stock <= i.minimum ? 'Stock faible' : 'Disponible',`pill ${i.stock <= i.minimum ? 'warning' : ''}`)); tr.append(status);
     const action = document.createElement('td'); const button = element('button','Mouvement','secondary'); button.setAttribute('aria-label',`Mouvement : ${i.name}`);
@@ -131,28 +135,36 @@ function render() {
 let selected;
 $('search').oninput = render; $('onlyAlerts').onchange = render;
 function openAsset(item) {
- editingId=item?.id || null; originalClassification=item || null; $('itemForm').reset(); $('itemError').textContent='';
+ editingId=item?.id || null; pendingPhoto=null; $('itemForm').reset(); $('itemError').textContent='';
  $('itemTitle').textContent=item ? 'Fiche du matériel' : 'Ajouter du matériel';
- for(const control of $('itemForm').elements) if(control.name && item && !['genre','category','subcategory'].includes(control.name)) control.value=item[control.name] ?? '';
- populateClassification(item || {});
+ for(const control of $('itemForm').elements) if(control.name && item && control.name!=='category') control.value=item[control.name] ?? '';
+ fillCategories($('itemForm').elements.category,item?.category || '','Choisir une catégorie');
+ $('photoFile').value='';$('removePhoto').checked=false;$('removePhoto').disabled=!item?.photoPath;
+ showPhoto(item?.photoUrl || '');
  $('itemForm').elements.stock.disabled=Boolean(item);
  $('stockHelp').textContent=item ? 'Pour modifier la quantité, enregistrez un mouvement.' : 'Quantité initiale du matériel.';
  $('itemDialog').showModal();
 }
 $('add').onclick = () => openAsset();
-$('genreFilter').onchange=()=>{ $('categoryFilter').value=''; $('subcategoryFilter').value=''; render(); };
-$('categoryFilter').onchange=()=>{ $('subcategoryFilter').value=''; render(); };
-for(const id of ['subcategoryFilter','serviceFilter']) $(id).onchange=render;
+for(const id of ['categoryFilter','serviceFilter']) $(id).onchange=render;
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('dialog').close());
 $('itemForm').onsubmit = async event => {
   event.preventDefault(); const form=event.currentTarget; const submit=form.querySelector('[type=submit]'); if(submit.disabled || !session) return;
   const data = new FormData(form);
   const previous=state.items.find(i => i.id === editingId);
   const item = {...previous,id:editingId || crypto.randomUUID(),name:data.get('name').trim(),reference:data.get('reference').trim(),location:data.get('location').trim(),stock:previous ? previous.stock : Number(data.get('stock')),minimum:Number(data.get('minimum'))};
+  item.category=String(data.get('category') || '');
+  item.categoryName=state.categories?.find(c=>c.code===item.category)?.label || '';
   for(const [key] of fields) item[key]=String(data.get(key) || '').trim();
   try {
     validateAsset(item,state.items,editingId,{allowMissingIdentifiers:true,allowDuplicateReference:true});
+    if(!state.categories?.some(c=>c.code===item.category)) throw Error('Choisissez une catégorie du catalogue.');
     submit.disabled=true;
+    const file=$('photoFile').files[0];
+    if(file) {
+     if(!pendingPhoto || pendingPhoto.file!==file) pendingPhoto={file,path:await repository.uploadPhoto(file)};
+     item.photoPath=pendingPhoto.path;
+    } else if($('removePhoto').checked) item.photoPath='';
     await repository.saveAsset(item,Boolean(editingId));
     $('itemDialog').close();
     await afterWrite(editingId ? 'Fiche mise à jour dans Supabase.' : 'Matériel ajouté dans Supabase.');
@@ -172,6 +184,17 @@ $('moveForm').onsubmit = async event => {
   $('moveDialog').close();
   await afterWrite('Mouvement enregistré dans Supabase.');
  } catch(e) { $('moveError').textContent=e.message; } finally { submit.disabled=false; }
+};
+$('manageCategories').onclick=()=>{ $('categoryForm').reset();$('categoryError').textContent='';$('categoryDialog').showModal(); };
+$('categoryForm').onsubmit=async event=>{
+ event.preventDefault();const form=event.currentTarget,submit=form.querySelector('[type=submit]');
+ if(submit.disabled || !session) return;
+ const data=new FormData(form),code=data.get('code').trim().toUpperCase(),label=data.get('label').trim();
+ try {
+  if(!/^[A-Z0-9_]{1,10}$/.test(code) || !label || label.length>50) throw Error('Code : 1 à 10 lettres/chiffres ; libellé : 1 à 50 caractères.');
+  if(state.categories.some(c=>c.code===code)) throw Error('Ce code de catégorie existe déjà.');
+  submit.disabled=true; await repository.createCategory(code,label); $('categoryDialog').close();await afterWrite('Catégorie créée. Elle est disponible pour les nouveaux matériels.');
+ } catch(e) { $('categoryError').textContent=e.message; } finally {submit.disabled=false;}
 };
 $('loginForm').onsubmit=async event=>{
  event.preventDefault(); const form=event.currentTarget,submit=form.querySelector('[type=submit]');

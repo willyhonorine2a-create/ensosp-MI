@@ -1,3 +1,5 @@
+> Configuration actuelle : [catégories simples et photos](categories-photos.md). Les genres et sous-catégories décrits ci-dessous sont historiques. Ne pas réappliquer les migrations 003/004 après 005.
+
 # Installation Supabase pour la preview
 
 Projet de test indiqué par l'utilisateur : `jdxfwetfdekwxposowys`.

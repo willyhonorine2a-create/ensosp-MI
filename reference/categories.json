@@ -1,0 +1,8 @@
+[
+ {"code":"LAN","label":"LANCES"},{"code":"TUY","label":"TUYAUX"},
+ {"code":"JON","label":"PIECES JONCTION"},{"code":"ECH","label":"ECHELLES"},
+ {"code":"MAT","label":"MATERIELS DIVERS"},{"code":"CAM","label":"CAMERAS THERMIQUES"},
+ {"code":"SER","label":"SECOURS ROUTIER"},{"code":"NET","label":"NETTOYAGE"},
+ {"code":"PID","label":"PIECES DETACHEES"},{"code":"MAC","label":"MACHINES A FUMEES"},
+ {"code":"COM","label":"COMMUNICATION"},{"code":"DET","label":"DETECTEURS"}
+]

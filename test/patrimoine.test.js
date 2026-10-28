@@ -6,7 +6,7 @@ test('la fiche existante reste compatible avec les nouveaux champs optionnels',(
 test('la modification conserve sa propre référence',()=>assert.doesNotThrow(()=>validateAsset(item,[item],'1')));
 test('les codes de bien dupliqués sont refusés',()=>assert.throws(()=>validateAsset({...item,reference:'L2'},[item],null),/code du bien/));
 test('les longueurs de la trame et les dates sont contrôlées',()=>{
- assert.throws(()=>validateAsset({...item,genre:'INCENDIE'},[],null),/5 caractères/);
+ assert.throws(()=>validateAsset({...item,serial:'X'.repeat(31)},[],null),/30 caractères/);
  assert.throws(()=>validateAsset({...item,purchasedAt:'2025-02-30'},[],null),/date invalide/);
  assert.doesNotThrow(()=>validateAsset({...item,purchasedAt:'2024-02-29'},[],null));
 });
