@@ -22,6 +22,12 @@ export function createRepository(client) {
    const member=await client.from('stock_members').select('user_id').eq('user_id',userId).maybeSingle();
    if(member.error) throw member.error;
    if(!member.data) throw Error('Votre compte n’est pas encore autorisé à accéder au magasin. Contactez le gestionnaire.');
+   const refs=await Promise.all(['genres','categories','subcategories'].map(async name=>{
+    const result=await client.from('stock_'+name).select('*').order('code');
+    if(result.error) throw Error('Référentiel indisponible. Exécutez le script SQL 003_classifications puis actualisez.');
+    return [name,result.data];
+   }));
+   const classifications=Object.fromEntries(refs);
    const items=[];
    for(let start=0;;start+=500) {
     const page=await client.from('stock_assets').select('*').order('id').range(start,start+499);
@@ -32,7 +38,7 @@ export function createRepository(client) {
    const result=await client.from('stock_movements').select('id,asset_id,movement_type,quantity,created_at,reason').order('created_at',{ascending:false}).limit(20);
    if(result.error) throw result.error;
    const names=new Map(items.map(i=>[i.id,i.name]));
-   return {items,history:result.data.map(m=>({name:names.get(m.asset_id)||'Matériel',type:m.movement_type,quantity:m.quantity,date:m.created_at,reason:m.reason}))};
+   return {classifications,items,history:result.data.map(m=>({name:names.get(m.asset_id)||'Matériel',type:m.movement_type,quantity:m.quantity,date:m.created_at,reason:m.reason}))};
   },
   async move(id,type,quantity,reason,requestId) {
    const {error}=await client.rpc('record_stock_movement_once',{p_asset_id:id,p_type:type,p_quantity:quantity,p_reason:reason,p_request_id:requestId});

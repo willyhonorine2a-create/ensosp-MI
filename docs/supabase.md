@@ -93,3 +93,8 @@ vérifications réseau ; cela est indépendant du navigateur qui utilise la prev
 
 Ne jamais utiliser une clé service_role ou secrète dans le navigateur. Garder
 la production séparée ; develop reste en preview.
+
+Pour les listes de genres/catégories/sous-catégories, appliquer également la
+migration 003. Voir [le référentiel du magasin](classifications.md). Les codes
+ne sont plus libres pour les nouveaux classements ; les codes historiques hors
+référentiel restent conservés tant qu'ils ne sont pas reclassés explicitement.

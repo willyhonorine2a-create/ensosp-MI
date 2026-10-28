@@ -1,0 +1,36 @@
+{
+  "genres": [
+    {"code":"INC","label":"Matériel d’intervention incendie"},
+    {"code":"SR","label":"Secours routier"},
+    {"code":"NET","label":"Nettoyage"},
+    {"code":"PID","label":"Pièces détachées"},
+    {"code":"EEE","label":"Équipement électrique et électronique"}
+  ],
+  "categories": [
+    {"genre_code":"INC","code":"LAN","label":"Lances"},
+    {"genre_code":"INC","code":"TUY","label":"Tuyaux"},
+    {"genre_code":"INC","code":"JON","label":"Pièces de jonction"},
+    {"genre_code":"INC","code":"ECH","label":"Échelles"},
+    {"genre_code":"INC","code":"FDF","label":"Feu de forêt"},
+    {"genre_code":"INC","code":"CLE","label":"Clés"},
+    {"genre_code":"INC","code":"MAT","label":"Matériels"},
+    {"genre_code":"SR","code":"OUT","label":"Outillages"},
+    {"genre_code":"EEE","code":"ECA","label":"Éclairage et alimentation"}
+  ],
+  "subcategories": [
+    {"genre_code":"SR","category_code":"OUT","code":"COU","label":"Outils de coupe"},
+    {"genre_code":"SR","category_code":"OUT","code":"LEV","label":"Outils de levage"},
+    {"genre_code":"SR","category_code":"OUT","code":"ECA","label":"Outils d’écartement"},
+    {"genre_code":"SR","category_code":"OUT","code":"POL","label":"Outils polyvalents"},
+    {"genre_code":"SR","category_code":"OUT","code":"CAL","label":"Outils de calage"},
+    {"genre_code":"SR","category_code":"OUT","code":"MAT","label":"Matériel"},
+    {"genre_code":"EEE","category_code":"ECA","code":"ECL","label":"Éclairage"},
+    {"genre_code":"EEE","category_code":"ECA","code":"BAT","label":"Batterie"},
+    {"genre_code":"EEE","category_code":"ECA","code":"DET","label":"Détecteurs"},
+    {"genre_code":"EEE","category_code":"ECA","code":"COM","label":"Communication"},
+    {"genre_code":"EEE","category_code":"ECA","code":"RAL","label":"Rallonges"},
+    {"genre_code":"EEE","category_code":"ECA","code":"MAC","label":"Machines à fumée"},
+    {"genre_code":"EEE","category_code":"ECA","code":"VEN","label":"Ventilateurs"},
+    {"genre_code":"EEE","category_code":"ECA","code":"CAM","label":"Caméras thermiques"}
+  ]
+}

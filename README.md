@@ -60,3 +60,9 @@ Les fichiers de données restent privés hors du dépôt et du site compilé.
 Il ne s'agit pas d'une connexion au logiciel ASTECH. Les codes sont libres ; les
 référentiels externes, champs de carte grise et compteurs ne sont pas gérés par
 les formulaires. Les colonnes d'origine restent conservées dans source_data.
+
+## Genres, catégories et sous-catégories
+
+Exécuter la migration `003_classifications.sql` pour relier les listes aux
+référentiels en base. Voir [les règles de classement](docs/classifications.md)
+pour les codes retenus et les anciennes classifications à vérifier.

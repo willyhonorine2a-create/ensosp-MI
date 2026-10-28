@@ -4,6 +4,7 @@ const $ = id => document.getElementById(id);
 import {createClient} from '@supabase/supabase-js';
 import {supabaseUrl,supabasePublishableKey} from './config.js';
 import {createRepository} from './data.js';
+import {classificationLabel,classificationIssue,classificationChoices} from './classifications.js';
 const client=createClient(supabaseUrl,supabasePublishableKey,{
  auth:{persistSession:true,storage:sessionStorage,detectSessionInUrl:false}
 });
@@ -11,12 +12,13 @@ const repository=createRepository(client);
 let session=null, revision=0, pendingMovement=null;
 for (const [name,label,code,max,type] of fields) {
   const wrapper = document.createElement('label'); wrapper.textContent = label;
-  const input = document.createElement(type === 'textarea' ? 'textarea' : 'input');
+  const input = document.createElement(['genre','category','subcategory'].includes(name) ? 'select' : type === 'textarea' ? 'textarea' : 'input');
+  if(['categoryName','subcategoryName'].includes(name)) input.readOnly=true;
   input.name=name; input.maxLength=max; if(type === 'date') input.type='date';
   wrapper.append(input); const hint=document.createElement('small'); hint.textContent=code; wrapper.append(hint);
   $('assetFields').append(wrapper);
 }
-let editingId = null;
+let editingId = null, originalClassification=null;
 let state = {items:[],history:[]};
 function clearInventory() {
  revision++; state={items:[],history:[]}; render();
@@ -61,24 +63,58 @@ function element(tag, text, className) {
   if (className) el.className = className;
   return el;
 }
+function fillFilter(id,key,level,genre='',category='') {
+ const control=$(id), previous=control.value;
+ const options=new Map(classificationChoices(state.classifications,level,genre,category).map(row=>[row.code,`${row.code} · ${row.label}`]));
+ for(const item of state.items) {
+  if((!genre || item.genre===genre) && (!category || item.category===category) && item[key] && !options.has(item[key])) options.set(item[key],`${item[key]} · Hors référentiel`);
+ }
+ control.replaceChildren(new Option('Tous',''));
+ [...options].sort(([a],[b])=>a.localeCompare(b,'fr')).forEach(([value,label])=>control.add(new Option(label,value)));
+ control.value=options.has(previous)?previous:'';
+}
+function populateClassification(item) {
+ const form=$('itemForm');
+ for(const [key,level] of [['genre','genres'],['category','categories'],['subcategory','subcategories']]) {
+  const control=form.elements[key];
+  const rows=key==='genre' ? classificationChoices(state.classifications,level) : !item.genre || (key==='subcategory' && !item.category) ? [] : classificationChoices(state.classifications,level,item.genre,key==='subcategory'?item.category:'');
+  control.replaceChildren(new Option('Non renseigné',''));
+  rows.forEach(row=>control.add(new Option(`${row.code} · ${row.label}`,row.code)));
+  const legacyAllowed=originalClassification && (key==='genre' || item.genre===originalClassification.genre) && (key!=='subcategory' || item.category===originalClassification.category);
+  if(item[key] && !rows.some(r=>r.code===item[key]) && legacyAllowed) control.add(new Option(`${item[key]} · Hors référentiel (existant)`,item[key]));
+  control.value=[...control.options].some(o=>o.value===item[key])?item[key]:'';
+  control.disabled=key!=='genre' && rows.length===0 && !control.value;
+ }
+ for(const [key,level,target] of [['category','categories','categoryName'],['subcategory','subcategories','subcategoryName']]) {
+  const row=classificationChoices(state.classifications,level,item.genre,item.category).find(r=>r.code===item[key]);
+  form.elements[target].value=row?.label || (originalClassification && item.genre===originalClassification.genre && item.category===originalClassification.category && item.subcategory===originalClassification.subcategory ? originalClassification[target] || '' : '');
+ }
+}
+$('itemForm').elements.genre.onchange=()=>populateClassification({genre:$('itemForm').elements.genre.value});
+$('itemForm').elements.category.onchange=()=>populateClassification({genre:$('itemForm').elements.genre.value,category:$('itemForm').elements.category.value});
+$('itemForm').elements.subcategory.onchange=()=>populateClassification({genre:$('itemForm').elements.genre.value,category:$('itemForm').elements.category.value,subcategory:$('itemForm').elements.subcategory.value});
 function render() {
   $('references').textContent = state.items.length;
   $('units').textContent = state.items.reduce((sum,i) => sum + i.stock,0);
   $('alerts').textContent = state.items.filter(i => i.stock <= i.minimum).length;
   $('defaultQuantities').textContent=state.items.filter(i => i.quantityDefaulted).length;
-  for (const [id,field] of [['genreFilter','genre'],['categoryFilter','category'],['serviceFilter','service']]) {
-    const select=$(id), previous=select.value;
-    select.replaceChildren(new Option('Tous', ''));
-    [...new Set(state.items.map(i => i[field]).filter(Boolean))].sort().forEach(value => select.add(new Option(value,value)));
-    select.value=[...select.options].some(o => o.value === previous) ? previous : '';
-  }
+  $('classificationWarnings').textContent=state.classifications ? `${state.items.filter(i=>classificationIssue(state.classifications,i)).length} biens avec un classement hors référentiel à vérifier.` : '';
+  fillFilter('genreFilter','genre','genres');
+  fillFilter('categoryFilter','category','categories',$('genreFilter').value);
+  fillFilter('subcategoryFilter','subcategory','subcategories',$('genreFilter').value,$('categoryFilter').value);
+  const services=$('serviceFilter'), previousService=services.value;
+  services.replaceChildren(new Option('Tous',''));
+  [...new Set(state.items.map(i=>i.service).filter(Boolean))].sort().forEach(v=>services.add(new Option(v,v)));
+  services.value=[...services.options].some(o=>o.value===previousService)?previousService:'';
   const query = $('search').value.toLocaleLowerCase('fr');
-  const visible = state.items.filter(i => [i.name,i.reference,i.location,...fields.map(([key]) => i[key] || '')].join(' ').toLocaleLowerCase('fr').includes(query) && [['genreFilter','genre'],['categoryFilter','category'],['serviceFilter','service']].every(([id,key]) => !$(id).value || i[key] === $(id).value) && (!$('onlyAlerts').checked || i.stock <= i.minimum));
+  const visible = state.items.filter(i => [i.name,i.reference,i.location,...fields.map(([key]) => i[key] || ''),...['genres','categories','subcategories'].map(level=>classificationLabel(state.classifications,level,i))].join(' ').toLocaleLowerCase('fr').includes(query) && [['genreFilter','genre'],['categoryFilter','category'],['subcategoryFilter','subcategory'],['serviceFilter','service']].every(([id,key]) => !$(id).value || i[key] === $(id).value) && (!$('onlyAlerts').checked || i.stock <= i.minimum));
   $('inventory').replaceChildren();
   visible.forEach(i => {
     const tr = document.createElement('tr');
     const name=element('td',i.name); name.append(element('small',i.assetCode ? `Code : ${i.assetCode}` : 'Code du bien non renseigné'));
-    const classification=element('td',i.genre || '—'); classification.append(element('small',[i.category,i.subcategory].filter(Boolean).join(' / ') || 'Non classé'));
+    const classification=element('td',classificationLabel(state.classifications,'genres',i) || (i.genre ? `${i.genre} · Hors référentiel` : 'Non classé'));
+    classification.append(element('small',[classificationLabel(state.classifications,'categories',i) || i.category,classificationLabel(state.classifications,'subcategories',i) || i.subcategory].filter(Boolean).join(' / ') || 'Sans catégorie'));
+    if(classificationIssue(state.classifications,i)) classification.append(element('small','Classement à vérifier','classification-warning'));
     const location=element('td',i.location || 'Non renseigné'); location.append(element('small',i.service ? `Service : ${i.service}` : 'Service non renseigné'));
     tr.append(name,element('td',i.reference || '—'),classification,location);
     const stock = element('td',String(i.stock)); stock.append(element('small',`Seuil : ${i.minimum}`)); if(i.quantityDefaulted) stock.append(element('small','Quantité initiale par défaut : 1'));  tr.append(stock);
@@ -95,15 +131,18 @@ function render() {
 let selected;
 $('search').oninput = render; $('onlyAlerts').onchange = render;
 function openAsset(item) {
- editingId=item?.id || null; $('itemForm').reset(); $('itemError').textContent='';
+ editingId=item?.id || null; originalClassification=item || null; $('itemForm').reset(); $('itemError').textContent='';
  $('itemTitle').textContent=item ? 'Fiche du matériel' : 'Ajouter du matériel';
- for(const control of $('itemForm').elements) if(control.name && item) control.value=item[control.name] ?? '';
+ for(const control of $('itemForm').elements) if(control.name && item && !['genre','category','subcategory'].includes(control.name)) control.value=item[control.name] ?? '';
+ populateClassification(item || {});
  $('itemForm').elements.stock.disabled=Boolean(item);
  $('stockHelp').textContent=item ? 'Pour modifier la quantité, enregistrez un mouvement.' : 'Quantité initiale du matériel.';
  $('itemDialog').showModal();
 }
 $('add').onclick = () => openAsset();
-for(const id of ['genreFilter','categoryFilter','serviceFilter']) $(id).onchange=render;
+$('genreFilter').onchange=()=>{ $('categoryFilter').value=''; $('subcategoryFilter').value=''; render(); };
+$('categoryFilter').onchange=()=>{ $('subcategoryFilter').value=''; render(); };
+for(const id of ['subcategoryFilter','serviceFilter']) $(id).onchange=render;
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('dialog').close());
 $('itemForm').onsubmit = async event => {
   event.preventDefault(); const form=event.currentTarget; const submit=form.querySelector('[type=submit]'); if(submit.disabled || !session) return;
