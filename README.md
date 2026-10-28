@@ -39,3 +39,24 @@ ces branches produisent des déploiements Preview. La mise en production est
 réservée à l'utilisateur, par promotion manuelle d'une preview validée dans Vercel.
 Ne pas pousser ou fusionner dans `main` pendant cette phase : cela déclencherait
 normalement une production automatique. La production existante reste en place.
+
+## Fiches patrimoniales
+
+La structure des fiches reprend les champs utiles au magasin de la trame
+`ASTECH_Import` : code du bien, désignation, nom court, genre, catégorie et
+sous-catégorie (codes et désignations), série, code-barres, affectation, état du
+bien, fournisseur, service gestionnaire, bien supérieur, dates et observations.
+Le bouton Fiche permet de consulter et modifier ces informations. Les quantités
+existantes se modifient exclusivement par mouvement pour conserver leur historique.
+Les données locales de la première version sont conservées ; les champs nouveaux
+restent vides tant qu'ils ne sont pas renseignés. Les filtres se peuplent à partir
+des codes saisis dans les fiches.
+
+Cette adaptation n'est pas un importateur Excel ni une intégration ASTECH. Les
+lignes du fichier fourni ne sont pas incorporées au dépôt. Les champs de carte
+grise, les compteurs et les coordonnées personnelles des correspondants ne sont
+pas repris à ce stade. Les codes restent libres, sans contrôle contre les tables
+ASTECH. Les champs patrimoniaux sont optionnels dans ce prototype, même si la
+trame impose certains champs lors d'un import ASTECH. Les limites de longueur
+des nouveaux champs reprennent celles de la trame. Le statut de disponibilité
+est distinct du champ État du bien.
