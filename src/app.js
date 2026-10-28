@@ -6,6 +6,7 @@ import {supabaseUrl,supabasePublishableKey} from './config.js';
 import {createRepository} from './data.js';
 import {validatePhoto} from './photos.js';
 import {groupReferences,deviceCode,dateLabel,deviceStatus} from './references.js';
+import {buildDashboard} from './dashboard.js';
 const client=createClient(supabaseUrl,supabasePublishableKey,{
  auth:{persistSession:true,storage:sessionStorage,detectSessionInUrl:false}
 });
@@ -22,7 +23,7 @@ for (const [name,label,code,max,type] of identificationFields) {
 let editingId = null, pendingPhoto=null, previewObjectUrl=null, creationRequest=null;
 let state = {items:[],history:[]};
 function clearInventory() {
- revision++; state={items:[],history:[]}; render();
+ revision++;document.body.classList.remove('dashboard-ready'); state={items:[],history:[]}; render();
  $('workspace').hidden=true; $('loginPanel').hidden=false;
  $('itemDialog').close(); $('moveDialog').close(); $('categoryDialog').close(); $('stockActionDialog').close(); $('trackingDialog').close();$('deviceDialog').close();
 }
@@ -33,12 +34,12 @@ async function refresh() {
  try {
   const next=await repository.load(session.user.id);
   if(current !== revision) return;
-  state=next; render(); $('workspace').hidden=false; $('loginPanel').hidden=true;
-  $('notice').textContent='Stock chargé depuis Supabase.';
+  state=next; render();document.body.classList.add('dashboard-ready'); $('workspace').hidden=false; $('loginPanel').hidden=true;
+  $('notice').textContent='Données du magasin actualisées.';
  } catch(e) {
   if(current !== revision) return;
   // Ne pas laisser agir sur un stock qui n'a pas pu être relu.
-  state={items:[],history:[]}; render(); $('workspace').hidden=true; $('loginPanel').hidden=false;
+  state={items:[],history:[]}; render();document.body.classList.remove('dashboard-ready'); $('workspace').hidden=true; $('loginPanel').hidden=false;
   $('notice').textContent=e.message || 'Chargement impossible. Réessayez.';
  } finally { if(current === revision) $('refresh').disabled=false; }
 }
@@ -47,6 +48,7 @@ async function updateSession(next) {
  session=next;
  $('logout').hidden=!session;
  $('account').textContent=session?.user.email || '';
+ $('accountAvatar').textContent=(session?.user.email || 'M').slice(0,1).toUpperCase();
  if(changed || !session) clearInventory();
  $('loginForm').hidden=Boolean(session);
  $('retry').hidden=!session;
@@ -93,14 +95,52 @@ $('removePhoto').onchange=()=>{
  else showPhoto(state.items.find(i=>i.id===editingId)?.photoUrl || '');
 };
 $('itemDialog').addEventListener('close',()=>showPhoto(''));
+const number=new Intl.NumberFormat('fr-FR');
+function renderDashboard(data,filters){
+ for(const [id,value] of Object.entries({references:data.references.length,units:data.units,alerts:data.alerts,trackedDevices:data.tracked,warrantyAlerts:data.expired+data.expiring,defaultQuantities:data.defaultQuantities}))$(id).textContent=number.format(value);
+ $('availableRate').textContent=data.availabilityRate===null?'—':`${data.availabilityRate} %`;
+ $('availabilityRing').style.setProperty('--rate',data.availabilityRate || 0);
+ $('availableDetail').textContent=data.units?`${number.format(data.available)} unités disponibles sur ${number.format(data.units)}`:'Aucun stock dans cette sélection';
+ $('trackedDetail').textContent=`${data.maintenance} en maintenance · ${data.unavailable} indisponibles`;
+ $('unitsDetail').textContent=`Dont ${number.format(data.tracked)} appareils suivis individuellement`;
+ $('warrantyDetail').textContent=`${data.expired} expirées · ${data.expiring} sous 90 jours`;
+ $('alertsDetail').textContent=`${data.empty} référence(s) sans stock disponible`;
+ $('scopeCount').textContent=`${number.format(data.references.length)} référence(s) sur ${number.format(data.globalReferences)}`;
+ $('resultCount').textContent=`${number.format(data.references.length)} résultat(s)`;
+ $('classificationWarnings').textContent=data.unclassified?`${data.unclassified} référence(s) à classer dans une catégorie.`:'';
+ const chips=[];
+ if(filters.search.trim())chips.push(`Recherche : ${filters.search.trim()}`);
+ if(filters.category)chips.push(categoryLabel(filters.category));
+ if(filters.service)chips.push(`Service : ${filters.service}`);
+ if(filters.mode)chips.push(filters.mode==='individual'?'Suivi individuel':'Gestion en quantité');
+ if(filters.onlyAlerts)chips.push('Alertes uniquement');
+ $('activeFilters').replaceChildren(...chips.map(label=>element('span',label,'filter-chip')));
+ $('filterScope').textContent=chips.length?'Indicateurs calculés sur la sélection':'Tous les matériels actifs';
+ $('resetFilters').disabled=chips.length===0;
+ $('categoryChart').replaceChildren();
+ const max=Math.max(1,...data.distribution.map(d=>d.units));
+ for(const entry of data.distribution.slice(0,4)){
+  const row=element('div','','category-bar');const heading=element('div','','category-bar-heading');
+  heading.append(element('span',`${entry.code || '—'} · ${entry.label}`),element('strong',number.format(entry.units)));
+  const track=element('div','','bar-track');track.setAttribute('aria-hidden','true');
+  const bar=element('span');bar.style.width=`${entry.units/max*100}%`;track.append(bar);row.append(heading,track);$('categoryChart').append(row);
+ }
+ $('categoryChartEmpty').hidden=data.distribution.length>0;
+ $('categoryChartNote').textContent=data.distribution.length>4?`Les 4 catégories les plus représentées sur ${data.distribution.length}`:'Unités en stock, selon les filtres actifs';
+ const watch=[
+  [data.expired,'garantie(s) expirée(s)','danger'],
+  [data.expiring,'garantie(s) arrivant à échéance sous 90 jours','amber'],
+  [data.maintenance,'appareil(s) en maintenance','amber'],
+  [data.unavailable,'appareil(s) indisponible(s)','danger'],
+  [data.unknownWarranty,'date(s) de garantie non renseignée(s) — facultatif','neutral']
+ ];
+ $('watchList').replaceChildren();
+ for(const [count,label,tone] of watch)if(count){const row=element('li','',`watch-item ${tone}`);row.append(element('strong',number.format(count)),element('span',label));$('watchList').append(row);}
+ $('watchEmpty').hidden=Boolean(watch.some(([count])=>count));
+ $('defaultsNote').hidden=data.defaultQuantities===0;
+}
+$('resetFilters').onclick=()=>{ $('search').value='';for(const id of ['categoryFilter','serviceFilter','modeFilter'])$(id).value='';$('onlyAlerts').checked=false;render(); };
 function render() {
-  const references=groupReferences(state.items);
-  $('references').textContent = references.length;
-  $('units').textContent = state.items.reduce((sum,i) => sum + i.stock,0);
-  $('alerts').textContent = references.filter(i => i.availableStock <= i.minimum).length;
-  $('defaultQuantities').textContent=state.items.filter(i => i.quantityDefaulted).length;
-  const unclassified=state.items.filter(i=>!state.categories?.some(c=>c.code===i.category)).length;
-  $('classificationWarnings').textContent=unclassified ? `${unclassified} matériels à classer dans une catégorie.` : '';
   fillCategories($('categoryFilter'),$('categoryFilter').value);
   $('categoryRows').replaceChildren();
   (state.categories || []).forEach(c=>{const tr=document.createElement('tr');tr.append(element('td',c.code),element('td',c.label));$('categoryRows').append(tr);});
@@ -108,8 +148,10 @@ function render() {
   services.replaceChildren(new Option('Tous',''));
   [...new Set(state.items.map(i=>i.service).filter(Boolean))].sort().forEach(v=>services.add(new Option(v,v)));
   services.value=[...services.options].some(o=>o.value===previousService)?previousService:'';
-  const query = $('search').value.toLocaleLowerCase('fr');
-  const visible = references.filter(i => [i.name,i.reference,i.location,...fields.map(([key]) => i[key] || ''),categoryLabel(i.category)].join(' ').toLocaleLowerCase('fr').includes(query) && [['categoryFilter','category'],['serviceFilter','service']].every(([id,key]) => !$(id).value || i[key] === $(id).value) && (!$('onlyAlerts').checked || i.availableStock <= i.minimum));
+  const filters={search:$('search').value,category:$('categoryFilter').value,service:$('serviceFilter').value,mode:$('modeFilter').value,onlyAlerts:$('onlyAlerts').checked};
+  const dashboard=buildDashboard(state.items,state.categories,state.deviceFacts,filters);
+  const visible=dashboard.references;
+  renderDashboard(dashboard,filters);
   $('inventory').replaceChildren();
   visible.forEach(i => {
     const tr = document.createElement('tr'); tr.setAttribute('role','row');
@@ -120,13 +162,14 @@ function render() {
      const img=document.createElement('img');img.src=i.photoUrl;img.alt=`Photo : ${i.name}`;img.loading='lazy';img.className='stock-photo';
      img.onerror=()=>{button.replaceChildren(element('span','Photo indisponible'));};
      button.append(img);button.onclick=()=>i.members.length>1?openTracking(i):openAsset(i);photo.append(button);
-    } else photo.append(element('span',i.photoUnavailable ? 'Photo indisponible' : '—'));
+    } else {const placeholder=element('span','▥','photo-placeholder');placeholder.setAttribute('role','img');placeholder.setAttribute('aria-label',i.photoUnavailable?'Photo indisponible':'Aucune photo');photo.append(placeholder);}
     const stock=document.createElement('td'), stockButton=element('button',String(i.stock),'stock-link');
     stockButton.setAttribute('aria-label',`Voir le stock : ${i.name}`);stockButton.onclick=()=>openTracking(i);stock.append(stockButton);
     stock.append(element('small',i.trackingMode==='individual'?`${i.availableStock} disponible(s)`:'Gestion en quantité'));
     if(i.members.length>1)stock.append(element('small',`${i.members.length} lignes regroupées`));
     const status=document.createElement('td');status.append(element('span',i.availableStock===0?(i.trackingMode==='individual'?'Indisponible':'Rupture'):i.availableStock<=i.minimum?'Stock faible':'Disponible',`pill ${i.availableStock<=i.minimum?'warning':''}`));
-    tr.append(photo,name,element('td',i.reference || '—'),element('td',categoryLabel(i.category)),stock,status);
+    const category=document.createElement('td');category.append(element('span',i.category || '—','category-tag'),element('small',state.categories?.find(c=>c.code===i.category)?.label || 'À classer'));
+    tr.append(photo,name,element('td',i.reference || '—'),category,stock,status);
     const action = document.createElement('td'); const button = element('button','Mouvement','secondary'); button.setAttribute('aria-label',`Mouvement : ${i.name}`);
     button.onclick = () => { if(i.trackingMode==='individual' || i.members.length>1){void openTracking(i);return;} selected = i.id; pendingMovement={id:crypto.randomUUID(),signature:null}; $('moveForm').reset(); $('moveError').textContent=''; $('moveName').textContent=`${i.name} · Stock actuel : ${i.stock}`; $('moveDialog').showModal(); };
     const edit=element('button','Fiche','secondary'); edit.setAttribute('aria-label',`Fiche : ${i.name}`); edit.onclick=()=>i.members.length>1?openTracking(i):openAsset(i);
@@ -159,7 +202,7 @@ function openAsset(item) {
  $('itemDialog').showModal();
 }
 $('add').onclick = () => openAsset();
-for(const id of ['categoryFilter','serviceFilter']) $(id).onchange=render;
+for(const id of ['categoryFilter','serviceFilter','modeFilter']) $(id).onchange=render;
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('dialog').close());
 $('itemForm').onsubmit = async event => {
   event.preventDefault(); const form=event.currentTarget; const submit=form.querySelector('[type=submit]'); if(submit.disabled || !session) return;
@@ -347,6 +390,13 @@ client.auth.onAuthStateChange((event,next)=>{
  if(event === 'SIGNED_OUT') void updateSession(null);
  if(event === 'TOKEN_REFRESHED') session=next;
 });
+const navigationLinks=[...document.querySelectorAll('.app-sidebar nav a,.mobile-nav a')];
+function markSection(id){navigationLinks.forEach(link=>{if(link.hash===`#${id}`)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');});}
+navigationLinks.forEach(link=>link.addEventListener('click',()=>markSection(link.hash.slice(1))));
+if(typeof IntersectionObserver!=='undefined'){
+ const observer=new IntersectionObserver(entries=>{const visible=entries.find(entry=>entry.isIntersecting);if(visible)markSection(visible.target.id);},{rootMargin:'-10% 0px -60% 0px'});
+ for(const id of ['overview','inventory-section','activity-section'])observer.observe($(id));
+}
 render();
 try {
  const {data,error}=await client.auth.getSession();

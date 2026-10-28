@@ -36,6 +36,12 @@ export function createRepository(client) {
     items.push(...page.data.map(fromRow));
     if(page.data.length<500) break;
    }
+   const deviceFacts=[];
+   for(let start=0;;start+=500){
+    const facts=await client.from('stock_devices').select('id,asset_id,status,warranty_until').is('retired_at',null).order('id').range(start,start+499);
+    if(facts.error)throw Error('Impossible de charger les appareils pour calculer les indicateurs. Réessayez.');
+    deviceFacts.push(...facts.data);if(facts.data.length<500)break;
+   }
    const paths=[...new Set(items.map(i=>i.photoPath).filter(Boolean))];
    if(paths.length) {
     const {data,error}=await client.storage.from('stock-photos').createSignedUrls(paths,3600);
@@ -47,7 +53,7 @@ export function createRepository(client) {
    const names=new Map(items.map(i=>[i.id,i.name]));
    const events=await client.from('stock_asset_events').select('id,action,before_quantity,after_quantity,reason,created_at,stock_assets(designation)').order('created_at',{ascending:false}).limit(20);
    if(events.error) throw Error('Actions de stock indisponibles. Appliquez les deux scripts de gestion du stock puis actualisez.');
-   return {events:events.data,categories,items,history:result.data.map(m=>({name:m.stock_assets?.designation || names.get(m.asset_id)||'Matériel',type:m.movement_type,quantity:m.quantity,date:m.created_at,reason:m.reason}))};
+   return {deviceFacts,events:events.data,categories,items,history:result.data.map(m=>({name:m.stock_assets?.designation || names.get(m.asset_id)||'Matériel',type:m.movement_type,quantity:m.quantity,date:m.created_at,reason:m.reason}))};
   },
   async devices(assetId) {
    const devices=[];

@@ -83,3 +83,10 @@ Le modèle actuel distingue la gestion en quantité et le suivi individuel.
 Le stock cliquable ouvre les lignes ou appareils correspondants ; séries et
 dates individuelles restent facultatives. Appliquer les migrations 009 à 013.
 Voir [le fonctionnement des références et appareils](docs/references-devices.md).
+
+## Tableau de bord
+
+Les six KPI, la répartition par catégorie et les points d'attention reflètent
+les filtres actifs et la recherche. Les garanties manquantes restent facultatives.
+Voir [les règles de calcul et le périmètre](docs/dashboard.md). Aucune migration
+SQL supplémentaire n'est nécessaire pour cette présentation.
