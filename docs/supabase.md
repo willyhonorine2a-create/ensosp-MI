@@ -13,7 +13,8 @@ nécessaire dans GitHub ou dans la conversation.
 3. Exécuter l'import privé généré avec le convertisseur ci-dessous. Un fichier
    privé combinant ces deux étapes est fourni dans la conversation ; il suffit
    de l'exécuter seul si vous l'utilisez.
-4. Le résultat du contrôle initial doit afficher 187 biens, 1239 unités et
+4. Exécuter ensuite `supabase/migrations/002_preview.sql` pour les écritures de fiches et les mouvements protégés contre les doubles envois.
+5. Le résultat du contrôle initial doit afficher 187 biens, 1239 unités et
    87 quantités initiales par défaut. La quantité ligne 115 a été corrigée à 7
    sur instruction du propriétaire.
 
@@ -53,7 +54,7 @@ fichier source n'ont pas de code unique.
 
 ## Autorisation d'un utilisateur (étape suivante)
 
-Créer ou inviter le compte dans Authentication > Users, puis copier son UUID.
+Dans Authentication > Users > Add user > Create new user, créer un compte avec une adresse e-mail et un mot de passe personnel. Confirmer le compte si nécessaire. Ne pas partager ce mot de passe. Ce compte est indépendant de la connexion GitHub au tableau de bord Supabase. Copier ensuite son UUID.
 Dans le SQL Editor, exécuter en remplaçant la valeur :
 
 ```sql
@@ -64,14 +65,31 @@ on conflict do nothing;
 
 Les mouvements passent exclusivement par record_stock_movement, qui verrouille
 le bien, vérifie le stock et écrit stock et historique dans une seule transaction.
-Les membres peuvent actuellement lire et enregistrer des mouvements ; la création
-et la modification de fiches distantes ne sont pas encore exposées au client.
+La migration 002 ajoute save_stock_asset et record_stock_movement_once.
+Les fiches sont écrites via une fonction vérifiant l'appartenance au magasin,
+les longueurs et les quantités. Modifier une fiche ne modifie jamais son stock.
+La création fixe un stock initial ; les changements suivants sont des mouvements.
+L'historique enregistre le compte connecté, la date et le motif facultatif.
+Un identifiant de requête rend la répétition d'un même mouvement sans effet,
+y compris après une réponse réseau perdue. Les réexécutions avec paramètres
+différents sous le même identifiant sont refusées.
 
 ## État de l'intégration
 
-Ces fichiers préparent la base. Le prototype web reste sur localStorage tant que
-l'authentification Supabase et l'adaptateur de données ne sont pas raccordés.
-Ne pas considérer un import SQL réussi comme une synchronisation du navigateur.
-Les données locales du navigateur ne sont pas envoyées par cet import.
-Ne pas utiliser une clé service_role ou secrète dans le navigateur ou dans les
-variables publiques Vercel. Garder la production séparée ; develop reste en preview.
+L'interface est raccordée à Supabase avec le client officiel. La configuration
+publique figure dans src/config.js. Un utilisateur non autorisé ne voit pas
+l'inventaire ; après autorisation il peut lire, créer/modifier des fiches et
+réaliser des mouvements. Pas d'inscription libre ni d'accès anonyme au stock.
+Les sessions sont stockées dans sessionStorage. Les données locales du prototype
+ne sont pas migrées automatiquement. Le bouton Actualiser permet une relecture
+explicite du stock ; aucune synchronisation temps réel n'est revendiquée.
+
+Les migrations et l'import ont été testés avec PostgreSQL local (PGlite) ;
+les parcours interface/SDK ont été vérifiés avec une API simulée. La vérification
+authentifiée sur le projet distant nécessite la création du premier compte
+applicatif et son autorisation par le propriétaire. L'environnement cloud doit
+aussi autoriser le domaine jdxfwetfdekwxposowys.supabase.co pour ses propres
+vérifications réseau ; cela est indépendant du navigateur qui utilise la preview.
+
+Ne jamais utiliser une clé service_role ou secrète dans le navigateur. Garder
+la production séparée ; develop reste en preview.

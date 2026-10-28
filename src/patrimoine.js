@@ -12,8 +12,8 @@ export const fields = [
  ['assignedAt','Début d’affectation','DAT_DEB_AFFECT',10,'date'],['warrantyUntil','Fin de garantie','DATGARANTIE',10,'date'],
  ['notes','Observations','OBS',512,'textarea']
 ];
-export function validateAsset(item, items, editingId) {
- if (!item.name || !item.reference || !item.location) throw Error('Renseignez la désignation, la référence et l’emplacement.');
+export function validateAsset(item, items, editingId, {allowMissingIdentifiers = false, allowDuplicateReference = false} = {}) {
+ if (!item.name || (!allowMissingIdentifiers && (!item.reference || !item.location))) throw Error('Renseignez la désignation, la référence et l’emplacement.');
  if (item.name.length > 100 || item.reference.length > 40 || item.location.length > 80) throw Error('Un champ dépasse la longueur autorisée.');
  if (![item.stock,item.minimum].every(n => Number.isSafeInteger(n) && n >= 0 && n <= 1000000)) throw Error('Les quantités doivent être des entiers entre 0 et 1 000 000.');
  for (const [key,label,,max,type] of fields) {
@@ -22,6 +22,6 @@ export function validateAsset(item, items, editingId) {
   if (type === 'date' && value && (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString().slice(0,10) !== value)) throw Error(`${label} : date invalide.`);
  }
  const other = items.filter(i => i.id !== editingId);
- if (other.some(i => i.reference.toLocaleLowerCase('fr') === item.reference.toLocaleLowerCase('fr'))) throw Error('Cette référence existe déjà.');
+ if (!allowDuplicateReference && item.reference && other.some(i => i.reference.toLocaleLowerCase('fr') === item.reference.toLocaleLowerCase('fr'))) throw Error('Cette référence existe déjà.');
  if (item.assetCode && other.some(i => i.assetCode?.toLocaleLowerCase('fr') === item.assetCode.toLocaleLowerCase('fr'))) throw Error('Ce code du bien existe déjà.');
 }

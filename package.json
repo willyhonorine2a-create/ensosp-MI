@@ -1,1 +1,22 @@
-{"name":"ensosp-stock","version":"0.1.0","private":true,"type":"module","scripts":{"dev":"node server.mjs","start":"node server.mjs","test":"node --test","build":"node build.mjs"},"engines":{"node":">=22"}}
+{
+  "name": "ensosp-stock",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm run build && node server.mjs",
+    "start": "npm run dev",
+    "test": "node --test --test-isolation=none test/*.test.js",
+    "build": "node build.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.12",
+    "esbuild": "^0.28.2"
+  }
+}

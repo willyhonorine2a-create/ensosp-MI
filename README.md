@@ -1,70 +1,62 @@
 # ENSOSP — Magasin incendie
 
-Prototype de gestion de stock en français : catalogue, recherche, seuils minimums,
-création de matériel et historique des entrées/sorties. Trois articles de démonstration
-sont proposés au premier lancement.
+Application en français : connexion Supabase, inventaire partagé, fiches
+patrimoniales, recherche, filtres, seuils et historique des entrées/sorties.
+Les données importées sans référence ou lieu restent affichables et modifiables
+sans inventer de valeurs. Les quantités initiales par défaut sont signalées.
 
 ## Développement
 
-Node.js 22 ou supérieur. Aucune dépendance externe ni clé de service nécessaire.
+Node.js 22 ou supérieur et Python 3 pour le convertisseur Excel.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Le serveur utilise le port 3000 (modifiable via PORT). `npm test` vérifie les règles
-de mouvement de stock. `npm run build` produit le site statique dans `dist/`.
+Le serveur utilise le port 3000 (modifiable via PORT). La commande dev reconstruit
+le site au démarrage ; la relancer après modification. `npm test` exécute les tests
+métier et PostgreSQL local via PGlite. `npm run build` utilise esbuild pour produire
+le site statique et embarquer le client officiel Supabase dans `dist/`.
 
-## Vercel
+```sh
+python3 -m unittest discover -s test -p 'test_*.py' -v
+```
 
-Importer ce dépôt, choisir le preset Other, la commande `npm run build` et le
-dossier de sortie `dist`. Ces deux derniers paramètres figurent dans vercel.json.
-Aucune variable d'environnement n'est nécessaire pour cette version.
+## Supabase
 
-## Limites de cette version
+Voir [l'installation et la création des accès](docs/supabase.md). Exécuter les
+migrations 001 puis 002 dans le SQL Editor du projet de test. L'interface exige
+un compte Supabase Auth autorisé dans stock_members. Il n'y a pas d'inscription
+libre dans l'application. Le compte du tableau de bord Supabase est indépendant.
 
-Les données sont stockées dans localStorage sur le navigateur utilisé. Elles ne
-sont pas partagées entre postes et peuvent être perdues si le stockage est effacé.
-Pas de connexion utilisateur, de sauvegarde serveur ni de connexion Supabase à ce
-stade. Réserver cette version à la démonstration ; la gestion réelle nécessitera
-Supabase, des droits d'accès et des mouvements transactionnels côté base de données.
-Ne jamais placer de mot de passe ou de clé Supabase secrète dans le code client.
+La configuration PUBLIQUE du projet de test se trouve dans src/config.js :
+URL et clé Publishable uniquement. Aucune variable Vercel supplémentaire n'est
+nécessaire pour cette preview. Ne jamais utiliser une clé secrète/service_role
+côté navigateur. RLS reste activé ; toute autorisation dépend du compte connecté.
 
-## Previews et production
+Les données ne sont plus lues ou enregistrées dans localStorage. Les anciennes
+données de démonstration y sont laissées intactes, sans import automatique.
+La session d'authentification est conservée dans sessionStorage et supprimée à la
+déconnexion locale. Un clic Actualiser recharge le stock ; pas de temps réel à ce
+stade. En cas d'échec Supabase, aucun mode local n'est activé silencieusement.
 
-Les développements sont publiés sur `develop` ou une branche de fonctionnalité.
-Avec l'intégration Git Vercel activée et `main` comme branche de production,
-ces branches produisent des déploiements Preview. La mise en production est
-réservée à l'utilisateur, par promotion manuelle d'une preview validée dans Vercel.
-Ne pas pousser ou fusionner dans `main` pendant cette phase : cela déclencherait
-normalement une production automatique. La production existante reste en place.
+## Vercel : previews uniquement
 
-## Fiches patrimoniales
+Importer ce dépôt : preset Other, commande `npm run build`, sortie `dist`.
+Les paramètres figurent dans vercel.json. Les développements sont publiés sur
+`develop` ou une branche de fonctionnalité. Avec l'intégration Git Vercel active
+et `main` comme branche de production, ils produisent des previews.
 
-La structure des fiches reprend les champs utiles au magasin de la trame
-`ASTECH_Import` : code du bien, désignation, nom court, genre, catégorie et
-sous-catégorie (codes et désignations), série, code-barres, affectation, état du
-bien, fournisseur, service gestionnaire, bien supérieur, dates et observations.
-Le bouton Fiche permet de consulter et modifier ces informations. Les quantités
-existantes se modifient exclusivement par mouvement pour conserver leur historique.
-Les données locales de la première version sont conservées ; les champs nouveaux
-restent vides tant qu'ils ne sont pas renseignés. Les filtres se peuplent à partir
-des codes saisis dans les fiches.
+L'utilisateur effectue les promotions manuelles vers la production. Ne pas
+pousser ou fusionner dans main sans demande explicite. Le projet Supabase câblé
+ici est celui de test : prévoir une configuration distincte avant une éventuelle
+promotion pour ne pas connecter la production à la base de test.
 
-Cette adaptation n'est pas un importateur Excel ni une intégration ASTECH. Les
-lignes du fichier fourni ne sont pas incorporées au dépôt. Les champs de carte
-grise, les compteurs et les coordonnées personnelles des correspondants ne sont
-pas repris à ce stade. Les codes restent libres, sans contrôle contre les tables
-ASTECH. Les champs patrimoniaux sont optionnels dans ce prototype, même si la
-trame impose certains champs lors d'un import ASTECH. Les limites de longueur
-des nouveaux champs reprennent celles de la trame. Le statut de disponibilité
-est distinct du champ État du bien.
+## Import patrimonial
 
-## Préparation Supabase
-
-Le schéma sécurisé et le convertisseur Excel vers SQL sont disponibles. Voir
-[les instructions Supabase](docs/supabase.md). Les fichiers SQL contenant les
-biens restent privés hors du dépôt et du site compilé. L'installation distante
-et le raccordement de l'interface sont deux étapes distinctes ; l'interface
-utilise encore le stockage local.
+Le convertisseur scripts/prepare_import.py reprend la trame ASTECH_Import.
+Les fichiers de données restent privés hors du dépôt et du site compilé.
+Il ne s'agit pas d'une connexion au logiciel ASTECH. Les codes sont libres ; les
+référentiels externes, champs de carte grise et compteurs ne sont pas gérés par
+les formulaires. Les colonnes d'origine restent conservées dans source_data.
