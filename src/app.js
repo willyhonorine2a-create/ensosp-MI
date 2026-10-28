@@ -9,7 +9,7 @@ const client=createClient(supabaseUrl,supabasePublishableKey,{
  auth:{persistSession:true,storage:sessionStorage,detectSessionInUrl:false}
 });
 const repository=createRepository(client);
-let session=null, revision=0, pendingMovement=null;
+let session=null, revision=0, pendingMovement=null, inventoryAction=null;
 for (const [name,label,code,max,type] of fields) {
   const wrapper = document.createElement('label'); wrapper.textContent = label;
   const input = document.createElement(type === 'textarea' ? 'textarea' : 'input');
@@ -22,7 +22,7 @@ let state = {items:[],history:[]};
 function clearInventory() {
  revision++; state={items:[],history:[]}; render();
  $('workspace').hidden=true; $('loginPanel').hidden=false;
- $('itemDialog').close(); $('moveDialog').close(); $('categoryDialog').close();
+ $('itemDialog').close(); $('moveDialog').close(); $('categoryDialog').close(); $('stockActionDialog').close();
 }
 async function refresh() {
  if(!session) return;
@@ -126,11 +126,16 @@ function render() {
     const action = document.createElement('td'); const button = element('button','Mouvement','secondary'); button.setAttribute('aria-label',`Mouvement : ${i.name}`);
     button.onclick = () => { selected = i.id; pendingMovement={id:crypto.randomUUID(),signature:null}; $('moveForm').reset(); $('moveError').textContent=''; $('moveName').textContent=`${i.name} · Stock actuel : ${i.stock}`; $('moveDialog').showModal(); };
     const edit=element('button','Fiche','secondary'); edit.setAttribute('aria-label',`Fiche : ${i.name}`); edit.onclick=()=>openAsset(i);
-    action.append(edit,button); tr.append(action); $('inventory').append(tr);
+    const adjust=element('button','Corriger le stock','secondary');adjust.setAttribute('aria-label',`Corriger le stock : ${i.name}`);adjust.onclick=()=>openStockAction(i,'adjust');
+    const remove=element('button','Supprimer','danger-outline');remove.setAttribute('aria-label',`Supprimer : ${i.name}`);remove.onclick=()=>openStockAction(i,'archive');
+    action.className='row-actions';action.append(edit,button,adjust,remove); tr.append(action); $('inventory').append(tr);
   });
   $('empty').hidden = visible.length > 0;
   $('history').replaceChildren(); $('noHistory').hidden = state.history.length > 0;
-  state.history.slice(0,20).forEach(m => $('history').append(element('li',`${m.type === 'entry' ? '+' : '−'}${m.quantity} · ${m.name} — ${new Date(m.date).toLocaleString('fr-FR')}`)));
+  state.history.slice(0,20).forEach(m => $('history').append(element('li',`${m.type === 'entry' ? '+' : '−'}${m.quantity} · ${m.name} — ${new Date(m.date).toLocaleString('fr-FR')}${m.reason ? ' · '+m.reason : ''}`)));
+  $('stockEvents').replaceChildren();$('noStockEvents').hidden=Boolean(state.events?.length);
+  (state.events || []).forEach(e=>$('stockEvents').append(element('li',`${e.action==='archive' ? 'Ligne supprimée' : 'Stock corrigé'} · ${e.stock_assets?.designation || 'Matériel'} · ${e.before_quantity} → ${e.after_quantity} · ${e.reason} — ${new Date(e.created_at).toLocaleString('fr-FR')}`)));
+
 }
 let selected;
 $('search').oninput = render; $('onlyAlerts').onchange = render;
@@ -184,6 +189,36 @@ $('moveForm').onsubmit = async event => {
   $('moveDialog').close();
   await afterWrite('Mouvement enregistré dans Supabase.');
  } catch(e) { $('moveError').textContent=e.message; } finally { submit.disabled=false; }
+};
+function openStockAction(item,action) {
+ inventoryAction={item,action,id:crypto.randomUUID(),signature:null};
+ $('stockActionForm').reset();$('stockActionError').textContent='';
+ $('stockActionTitle').textContent=action==='adjust'?'Corriger le stock':'Supprimer la ligne du stock';
+ $('stockActionItem').textContent=`${item.name} · Stock actuel : ${item.stock}`;
+ $('targetQuantityLabel').hidden=action==='archive';
+ $('stockActionForm').elements.quantity.disabled=action==='archive';
+ $('stockActionForm').elements.quantity.value=item.stock;
+ $('stockActionExplanation').textContent=action==='archive'
+  ? `Cette ligne et ses ${item.stock} unités seront retirées de l’inventaire actif. La fiche, sa photo et son historique seront conservés. Cette action concerne uniquement ce matériel.`
+  : 'Saisissez la quantité réellement constatée. La différence sera enregistrée dans les mouvements avec votre motif.';
+ $('stockActionSubmit').textContent=action==='archive'?'Confirmer la suppression':'Enregistrer la quantité';
+ $('stockActionSubmit').className=action==='archive'?'danger':'';
+ $('stockActionDialog').showModal();
+}
+$('stockActionForm').onsubmit=async event=>{
+ event.preventDefault();const form=event.currentTarget,submit=$('stockActionSubmit');
+ if(submit.disabled || !session || !inventoryAction) return;
+ const {item,action}=inventoryAction;const quantity=action==='archive'?item.stock:Number(form.elements.quantity.value),reason=form.elements.reason.value.trim();
+ try {
+  if(!Number.isSafeInteger(quantity) || quantity<0 || quantity>1000000) throw Error('Saisissez une quantité entière entre 0 et 1 000 000.');
+  if(!reason || reason.length>512) throw Error('Renseignez un motif (512 caractères maximum).');
+  const signature=JSON.stringify([quantity,reason]);
+  if(inventoryAction.signature && inventoryAction.signature!==signature)inventoryAction.id=crypto.randomUUID();
+  inventoryAction.signature=signature;submit.disabled=true;
+  await repository.manageStock(item.id,action,quantity,item.stock,reason,inventoryAction.id);
+  $('stockActionDialog').close();
+  await afterWrite(action==='archive'?'Ligne supprimée de l’inventaire. Son historique est conservé.':'Stock corrigé et historique enregistré.');
+ } catch(e) { $('stockActionError').textContent=e.message; } finally {submit.disabled=false;}
 };
 $('manageCategories').onclick=()=>{ $('categoryForm').reset();$('categoryError').textContent='';$('categoryDialog').showModal(); };
 $('categoryForm').onsubmit=async event=>{

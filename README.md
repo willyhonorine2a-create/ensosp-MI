@@ -70,3 +70,9 @@ Voir [la configuration des catégories et photos](docs/categories-photos.md) pou
 les migrations 005/006, les scripts courts à exécuter dans Supabase et le
 rapprochement privé avec le nouveau classeur. Les stocks et historiques existants
 sont préservés ; le regroupement des anciennes lignes reste à valider.
+
+## Correction du stock et suppression
+
+Les boutons Corriger le stock et Supprimer permettent respectivement de saisir
+une quantité réelle et de retirer une ligne de l'inventaire, avec motif et trace
+historique. Appliquer les migrations 007 et 008. Voir [les actions de stock](docs/inventory-actions.md).

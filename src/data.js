@@ -28,7 +28,7 @@ export function createRepository(client) {
    const categories=catalog.data;
    const items=[];
    for(let start=0;;start+=500) {
-    const page=await client.from('stock_assets').select('*').order('id').range(start,start+499);
+    const page=await client.from('stock_assets').select('*').is('archived_at',null).order('id').range(start,start+499);
     if(page.error) throw page.error;
     items.push(...page.data.map(fromRow));
     if(page.data.length<500) break;
@@ -39,13 +39,19 @@ export function createRepository(client) {
     const urls=new Map((data || []).map(p=>[p.path,p.signedUrl]));
     items.forEach(i=>{i.photoUrl=urls.get(i.photoPath) || '';i.photoUnavailable=Boolean(i.photoPath && (error || !i.photoUrl));});
    }
-   const result=await client.from('stock_movements').select('id,asset_id,movement_type,quantity,created_at,reason').order('created_at',{ascending:false}).limit(20);
+   const result=await client.from('stock_movements').select('id,asset_id,movement_type,quantity,created_at,reason,stock_assets(designation)').order('created_at',{ascending:false}).limit(20);
    if(result.error) throw result.error;
    const names=new Map(items.map(i=>[i.id,i.name]));
-   return {categories,items,history:result.data.map(m=>({name:names.get(m.asset_id)||'Matériel',type:m.movement_type,quantity:m.quantity,date:m.created_at,reason:m.reason}))};
+   const events=await client.from('stock_asset_events').select('id,action,before_quantity,after_quantity,reason,created_at,stock_assets(designation)').order('created_at',{ascending:false}).limit(20);
+   if(events.error) throw Error('Actions de stock indisponibles. Appliquez les deux scripts de gestion du stock puis actualisez.');
+   return {events:events.data,categories,items,history:result.data.map(m=>({name:m.stock_assets?.designation || names.get(m.asset_id)||'Matériel',type:m.movement_type,quantity:m.quantity,date:m.created_at,reason:m.reason}))};
   },
   async move(id,type,quantity,reason,requestId) {
    const {error}=await client.rpc('record_stock_movement_once',{p_asset_id:id,p_type:type,p_quantity:quantity,p_reason:reason,p_request_id:requestId});
+   if(error) throw error;
+  },
+  async manageStock(id,action,quantity,expected,reason,requestId) {
+   const {error}=await client.rpc('manage_stock_asset',{p_asset_id:id,p_action:action,p_quantity:quantity,p_expected_quantity:expected,p_reason:reason,p_request_id:requestId});
    if(error) throw error;
   },
   async createCategory(code,label) {
