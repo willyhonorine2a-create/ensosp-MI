@@ -53,3 +53,31 @@ test('la migration relie les classifications, protège les droits et conserve le
   assert.equal((await db.query('select quantity from stock_assets where id=$1',[good])).rows[0].quantity,6);
  } finally {await db.close();}
 });
+
+test('le reclassement MAC/CAM corrige uniquement EQT/ECA, sans changer les stocks et les données source',async()=>{
+ const db=new PGlite();
+ try {
+  await db.exec(`create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key); create function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;`);
+  await db.exec(await readFile(new URL('../supabase/migrations/001_stock.sql',import.meta.url),'utf8'));
+  await db.exec(`insert into stock_assets(designation,genre,category,subcategory,quantity,source_data)
+   values ('Machine','EQT','ECA','MAC',7,'{"GENRE":"EQT"}'),
+          ('Caméra','EQT','ECA','CAM',6,'{"GENRE":"EQT"}'),
+          ('Machine déjà classée','EEE','ECA','MAC',3,'{}'),
+          ('Autre classement','EQT','ECA','VEN',4,'{}'),
+          ('Autre catégorie','EQT','AUTRE','CAM',5,'{}');`);
+  await db.exec(await readFile(new URL('../supabase/migrations/003_classifications.sql',import.meta.url),'utf8'));
+  const before=(await db.query('select id,designation,quantity,source_data from stock_assets order by id')).rows;
+  const sql=await readFile(new URL('../supabase/migrations/004_reclassify_mac_cam.sql',import.meta.url),'utf8');
+  const results=await db.exec(sql);
+  assert.deepEqual(results[0].rows.map(r=>({...r,biens_reclasses:Number(r.biens_reclasses),unites_conservees:Number(r.unites_conservees)})),[
+   {sous_categorie:'CAM',biens_reclasses:1,unites_conservees:6},
+   {sous_categorie:'MAC',biens_reclasses:1,unites_conservees:7}
+  ]);
+  assert.deepEqual((await db.query('select id,designation,quantity,source_data from stock_assets order by id')).rows,before);
+  const fixed=(await db.query("select * from stock_assets where designation in ('Machine','Caméra') order by designation")).rows;
+  for(const row of fixed){assert.equal(row.genre,'EEE');assert.equal(row.category,'ECA');assert.equal(row.category_name,'Éclairage et alimentation');}
+  assert.equal(fixed[0].subcategory_name,'Caméras thermiques');assert.equal(fixed[1].subcategory_name,'Machines à fumée');
+  assert.equal((await db.query("select count(*)::int as n from stock_assets where genre='EQT'")).rows[0].n,2);
+  assert.equal((await db.exec(sql))[0].rows.length,0);
+ } finally {await db.close();}
+});

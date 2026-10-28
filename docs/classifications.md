@@ -61,3 +61,19 @@ Les contrôles PostgreSQL et les parcours DOM avec API simulée valident la
 hiérarchie, les droits, le maintien des stocks et les listes dépendantes.
 L'application distante du script doit être effectuée par le propriétaire dans
 SQL Editor, l'environnement ne disposant pas d'accès administrateur Supabase.
+
+## Reclassement validé MAC et CAM
+
+À la demande explicite du propriétaire, la migration 004_reclassify_mac_cam.sql
+reclasse uniquement EQT/ECA/MAC et EQT/ECA/CAM en EEE/ECA, sans modifier leurs
+sous-catégories. Le trigger renseigne les libellés reconnus. Les quantités,
+identifiants, références, historique et source_data sont conservés. Les autres
+classements restent inchangés. Le script peut être rejoué : seuls les biens
+encore classés dans les deux anciennes combinaisons sont traités.
+
+Sur l'import initial, cela représente 6 biens MAC et 6 biens CAM. Le total de
+classements hors référentiel passe de 25 à 13 si aucune autre modification n'a
+été effectuée. Les valeurs réellement reclassées sont retournées par le script.
+Ce reclassement est une correction métier après import ; les codes d'origine
+restent dans source_data. Ne pas réimporter un classeur modifié pour mettre à
+jour les fiches : utiliser les fiches ou des corrections ciblées.
