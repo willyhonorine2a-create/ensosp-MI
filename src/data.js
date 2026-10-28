@@ -7,7 +7,7 @@ export const mapping = {
  registeredAt:'registered_at',purchasedAt:'purchased_at',assignedAt:'assigned_at',warrantyUntil:'warranty_until',notes:'notes'
 };
 export function fromRow(row) {
- const item={id:row.id,stock:row.quantity,minimum:row.minimum_quantity,quantityDefaulted:row.quantity_defaulted};
+ const item={id:row.id,stock:row.quantity,minimum:row.minimum_quantity,quantityDefaulted:row.quantity_defaulted,trackingMode:row.tracking_mode || 'quantity',availableStock:Number(row.available_devices ?? row.quantity)};
  for(const [key,column] of Object.entries(mapping)) item[key]=row[column] ?? '';
  return item;
 }
@@ -28,8 +28,11 @@ export function createRepository(client) {
    const categories=catalog.data;
    const items=[];
    for(let start=0;;start+=500) {
-    const page=await client.from('stock_assets').select('*').is('archived_at',null).order('id').range(start,start+499);
-    if(page.error) throw page.error;
+    const page=await client.from('stock_reference_inventory').select('*').is('archived_at',null).order('id').range(start,start+499);
+    if(page.error) {
+     if(['42P01','PGRST205'].includes(page.error.code))throw Error('Le suivi des appareils n’est pas encore installé. Exécutez les cinq scripts Supabase puis actualisez.');
+     throw page.error;
+    }
     items.push(...page.data.map(fromRow));
     if(page.data.length<500) break;
    }
@@ -45,6 +48,22 @@ export function createRepository(client) {
    const events=await client.from('stock_asset_events').select('id,action,before_quantity,after_quantity,reason,created_at,stock_assets(designation)').order('created_at',{ascending:false}).limit(20);
    if(events.error) throw Error('Actions de stock indisponibles. Appliquez les deux scripts de gestion du stock puis actualisez.');
    return {events:events.data,categories,items,history:result.data.map(m=>({name:m.stock_assets?.designation || names.get(m.asset_id)||'Matériel',type:m.movement_type,quantity:m.quantity,date:m.created_at,reason:m.reason}))};
+  },
+  async devices(assetId) {
+   const devices=[];
+   for(let start=0;;start+=500) {
+    const result=await client.from('stock_devices').select('*').eq('asset_id',assetId).is('retired_at',null).order('device_number').range(start,start+499);
+    if(result.error)throw result.error;devices.push(...result.data);if(result.data.length<500)break;
+   }
+   return devices;
+  },
+  async saveDevice(assetId,device,action,data,requestId) {
+   const {error}=await client.rpc('manage_stock_device',{p_asset_id:assetId,p_id:device?.id || null,p_action:action,p_data:data,p_expected_at:device?.updated_at || null,p_request_id:requestId});
+   if(error)throw error;
+  },
+  async convert(items,count,reason,requestId) {
+   const {data,error}=await client.rpc('convert_stock_reference',{p_items:items.map(i=>({id:i.id,quantity:i.stock})),p_count:count,p_reason:reason,p_request_id:requestId});
+   if(error)throw error;return data;
   },
   async move(id,type,quantity,reason,requestId) {
    const {error}=await client.rpc('record_stock_movement_once',{p_asset_id:id,p_type:type,p_quantity:quantity,p_reason:reason,p_request_id:requestId});
@@ -66,7 +85,7 @@ export function createRepository(client) {
    return path;
   },
   async saveAsset(item,editing) {
-   const {data,error}=await client.rpc('save_stock_asset',{p_id:editing ? item.id : null,p_data:toRow(item),p_initial_quantity:editing ? null : item.stock});
+   const {data,error}=await client.rpc('save_stock_reference',{p_id:editing ? item.id : null,p_data:{...toRow(item),...(item.creationRequestId?{request_id:item.creationRequestId}:{})},p_initial_quantity:editing ? null : item.stock,p_mode:item.trackingMode || 'quantity'});
    if(error) throw error;
    return data;
   }

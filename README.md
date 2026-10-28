@@ -76,3 +76,10 @@ sont préservés ; le regroupement des anciennes lignes reste à valider.
 Les boutons Corriger le stock et Supprimer permettent respectivement de saisir
 une quantité réelle et de retirer une ligne de l'inventaire, avec motif et trace
 historique. Appliquer les migrations 007 et 008. Voir [les actions de stock](docs/inventory-actions.md).
+
+## Références et appareils
+
+Le modèle actuel distingue la gestion en quantité et le suivi individuel.
+Le stock cliquable ouvre les lignes ou appareils correspondants ; séries et
+dates individuelles restent facultatives. Appliquer les migrations 009 à 013.
+Voir [le fonctionnement des références et appareils](docs/references-devices.md).
