@@ -109,7 +109,7 @@ function render() {
   const visible = state.items.filter(i => [i.name,i.reference,i.location,...fields.map(([key]) => i[key] || ''),categoryLabel(i.category)].join(' ').toLocaleLowerCase('fr').includes(query) && [['categoryFilter','category'],['serviceFilter','service']].every(([id,key]) => !$(id).value || i[key] === $(id).value) && (!$('onlyAlerts').checked || i.stock <= i.minimum));
   $('inventory').replaceChildren();
   visible.forEach(i => {
-    const tr = document.createElement('tr');
+    const tr = document.createElement('tr'); tr.setAttribute('role','row');
     const name=element('td',i.name); name.append(element('small',i.assetCode ? `Code : ${i.assetCode}` : 'Code du bien non renseigné'));
     const classification=element('td',categoryLabel(i.category));
     const location=element('td',i.location || 'Non renseigné'); location.append(element('small',i.service ? `Service : ${i.service}` : 'Service non renseigné'));
@@ -128,7 +128,10 @@ function render() {
     const edit=element('button','Fiche','secondary'); edit.setAttribute('aria-label',`Fiche : ${i.name}`); edit.onclick=()=>openAsset(i);
     const adjust=element('button','Corriger le stock','secondary');adjust.setAttribute('aria-label',`Corriger le stock : ${i.name}`);adjust.onclick=()=>openStockAction(i,'adjust');
     const remove=element('button','Supprimer','danger-outline');remove.setAttribute('aria-label',`Supprimer : ${i.name}`);remove.onclick=()=>openStockAction(i,'archive');
-    action.className='row-actions';action.append(edit,button,adjust,remove); tr.append(action); $('inventory').append(tr);
+    action.className='row-actions';const actionButtons=document.createElement('div');actionButtons.className='action-buttons';actionButtons.append(edit,button,adjust,remove);action.append(actionButtons);tr.append(action);
+    const columns=[['photo','Photo'],['name','Matériel'],['reference','Référence'],['category','Catégorie'],['location','Affectation'],['stock','Stock'],['status','Disponibilité'],['actions','Actions']];
+    [...tr.children].forEach((cell,index)=>{cell.classList.add(`cell-${columns[index][0]}`);cell.dataset.label=columns[index][1];cell.setAttribute('role','cell');});
+    $('inventory').append(tr);
   });
   $('empty').hidden = visible.length > 0;
   $('history').replaceChildren(); $('noHistory').hidden = state.history.length > 0;
