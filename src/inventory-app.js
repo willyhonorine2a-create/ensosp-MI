@@ -19,7 +19,7 @@ function renderFleet(){
   const content=el('div',undefined,'vehicle-content');content.append(el('span',vehicle.center || 'Affectation à confirmer','vehicle-center'),el('h3',vehicle.name),el('p',vehicle.registration,'registration'));
   if(sheet){const link=el('a','Consulter l’inventaire →','sheet-link');link.href=hashFor(vehicle.center,vehicle.id);content.append(link);}
   else content.append(el('span','Fiche à ajouter','sheet-pending'));
-  if(isAdmin){const edit=el('button','Modifier / changer de centre');edit.onclick=()=>editVehicle(vehicle);content.append(edit);}
+  if(isAdmin){const edit=el('button','Modifier la fiche et l’affectation','secondary vehicle-edit');edit.onclick=()=>editVehicle(vehicle);content.append(edit);}
   card.append(visual,content);$('vehicleCards').append(card);
  }
  $('noVehicles').hidden=visible.length>0;$('moreVehicles').hidden=visible.length<=limit;

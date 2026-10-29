@@ -7,6 +7,7 @@ for(const file of ['data.json','style.css','app.js','photos/fpt-18-profil-1.jpeg
 for(const file of readdirSync(new URL('dist/inventaire/photos/',import.meta.url))) {
  if(/^[a-z0-9-]+\.jpeg$/.test(file))routes['/inventaire/photos/'+file]='inventaire/photos/'+file;
 }
+routes['/src/theme.css']='src/theme.css';
 const types = {json:'application/json; charset=utf-8',jpeg:'image/jpeg',png:'image/png',svg:'image/svg+xml',webmanifest:'application/manifest+json',html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8'};
 const port=Number(process.env.PORT || 3000);
 http.createServer(async(req,res)=>{
