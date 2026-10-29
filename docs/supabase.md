@@ -54,7 +54,9 @@ réinitialise pas leurs stocks. Un classeur modifié est un nouvel import : ne p
 l'importer à nouveau sans rapprochement préalable, car beaucoup de biens du
 fichier source n'ont pas de code unique.
 
-## Autorisation d'un utilisateur (étape suivante)
+## Autorisation d’un utilisateur (historique, avant les rôles)
+
+Pour la procédure actuelle, utiliser la validation des demandes dans [Comptes et rôles](accounts-access.md). Les étapes ci-dessous documentent le démarrage initial ; un ajout SQL sans rôle ne donne désormais qu’un accès lecteur.
 
 Dans Authentication > Users > Add user > Create new user, créer un compte avec une adresse e-mail et un mot de passe personnel. Confirmer le compte si nécessaire. Ne pas partager ce mot de passe. Ce compte est indépendant de la connexion GitHub au tableau de bord Supabase. Copier ensuite son UUID.
 Dans le SQL Editor, exécuter en remplaçant la valeur :
@@ -68,7 +70,7 @@ on conflict do nothing;
 Les mouvements passent exclusivement par record_stock_movement, qui verrouille
 le bien, vérifie le stock et écrit stock et historique dans une seule transaction.
 La migration 002 ajoute save_stock_asset et record_stock_movement_once.
-Les fiches sont écrites via une fonction vérifiant l'appartenance au magasin,
+Depuis la migration 019, les fiches sont écrites via une fonction exigeant le rôle administrateur,
 les longueurs et les quantités. Modifier une fiche ne modifie jamais son stock.
 La création fixe un stock initial ; les changements suivants sont des mouvements.
 L'historique enregistre le compte connecté, la date et le motif facultatif.
@@ -100,3 +102,5 @@ Pour les listes de genres/catégories/sous-catégories, appliquer également la
 migration 003. Voir [le référentiel du magasin](classifications.md). Les codes
 ne sont plus libres pour les nouveaux classements ; les codes historiques hors
 référentiel restent conservés tant qu'ils ne sont pas reclassés explicitement.
+
+Depuis les migrations 018 à 021, la consultation est réservée aux comptes approuvés et les écritures aux administrateurs. Voir [Comptes et rôles](accounts-access.md) pour la procédure actuelle de validation des demandes.

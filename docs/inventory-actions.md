@@ -45,7 +45,7 @@ exposée dans cette version ; elle doit être traitée séparément si nécessai
 
 ## Droits et vérifications
 
-manage_stock_asset exige l'appartenance à stock_members ; les écritures directes
+Depuis la migration 019, manage_stock_asset exige le rôle administrateur dans stock_members ; les écritures directes
 et l'accès anonyme à stock_asset_events restent interdits. La suppression est
 ciblée sur un seul identifiant. Les modifications et l'événement sont atomiques.
 Les tests PostgreSQL couvrent les droits, les quantités négatives ou périmées,
@@ -54,3 +54,5 @@ l'interdiction d'écrire sur une fiche supprimée. Le parcours DOM/SDK avec API
 simulée couvre la correction, l'annulation et la confirmation d'une suppression,
 les indicateurs et la conservation de l'historique. La vérification réelle dans
 Supabase reste à effectuer après application des deux scripts.
+
+Depuis les migrations 018 à 021, la consultation est réservée aux comptes approuvés et les écritures aux administrateurs. Voir [Comptes et rôles](accounts-access.md) pour la procédure actuelle de validation des demandes.

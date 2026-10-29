@@ -264,7 +264,7 @@ button { background:var(--coral); border-radius:9px; font-size:13px; box-shadow:
 .activity-grid .panel { margin:0; padding:22px; }
 .activity-grid h2 { font-size:16px; }
 .activity-grid .eyebrow { margin-top:0; }
-#overview,#inventory-section { scroll-margin-top:24px; }
+#overview,#stock-section { scroll-margin-top:24px; }
 #history li,#stockEvents li { font-size:12px; color:#667b8f; }
 #noHistory,#noStockEvents { font-size:12px; color:#8b98a8; }
 dialog { border-radius:16px; box-shadow:0 24px 80px #1528402e; }
@@ -334,7 +334,7 @@ input:focus,select:focus,textarea:focus { border-color:#7896aa; }
  .dashboard-ready .mobile-nav { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); position:sticky; top:0; z-index:4; padding:7px 16px; gap:6px; background:#fffffff5; border-bottom:1px solid #e1e7ee; backdrop-filter:blur(10px); }
  .mobile-nav a { display:grid; place-items:center; min-height:42px; padding:8px 4px; font-size:11px; text-decoration:none; color:#6b8197; border-radius:7px; text-align:center; }
  .mobile-nav a[aria-current="location"] { background:#edf2f7; color:#284a68; font-weight:650; }
- #overview,#inventory-section,#activity-section { scroll-margin-top:76px; }
+ #overview,#stock-section,#activity-section { scroll-margin-top:76px; }
 }
 /* Les textes secondaires restent suffisamment contrastés sur fond clair. */
 .insight-note,.scope-count,.cell-category small,.cell-reference,#notice,#noHistory,#noStockEvents { color:#60748b; }
@@ -394,3 +394,19 @@ button.secondary { background:#f0f3f8; color:#304e70; }
 .location-history { margin-top:22px; }.location-history h2 { font-size:17px; }.location-history p,.location-history li { color:#60748b; font-size:12px; }
 #deviceLocationFilterLabel { max-width:360px; margin:16px 0; }
 @media(max-width:740px) { .location-overview { grid-template-columns:1fr; gap:10px; }.location-overview article { padding:14px 18px; } }
+
+/* Comptes, lecture seule et accès public à l’espace Inventaire. */
+.auth-tabs { display:flex; gap:8px; margin:24px 0; }.auth-tabs button { flex:1; }
+.auth-tabs button[aria-pressed="true"] { background:#fff0f2; color:#ba1721; box-shadow:inset 0 -2px #ed1c24; }
+.public-inventory-link { display:inline-block; color:#304e70; font-size:13px; margin-top:16px; text-underline-offset:4px; }
+#accessPanel { padding:16px; border:1px solid #dde5ef; border-radius:12px; background:#f7f9fc; margin:22px 0; }#accessPanel h2 { font-size:19px; }
+#authMessage { color:#304e70; font-size:13px; }
+.accounts-panel { margin-top:24px; scroll-margin-top:76px; }.accounts-panel > p { color:#60748b; font-size:13px; }.accounts-panel > label { max-width:360px; }
+.accounts-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin:22px 0; }
+.account-card { border:1px solid #dde5ef; border-radius:14px; padding:20px; min-width:0; }.account-card h3 { margin:0 0 8px; font-size:16px; }.account-card p { font-size:13px; overflow-wrap:anywhere; }.account-card small { font-size:12px; color:#60748b; }
+.account-actions,.account-pagination { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:16px; }.account-pagination { justify-content:space-between; }.account-pagination span { font-size:13px; color:#60748b; }
+.admin-navigation { display:flex; align-items:center; gap:12px; text-decoration:none; color:#405d7d; padding:13px 12px; margin-top:8px; font-size:12px; border-radius:9px; }.admin-navigation .icon { color:#ed1c24; }.admin-navigation[aria-current="location"] { background:#fff2f3; color:#0b1c36; }
+.public-inventory main { max-width:1000px; margin:32px auto; }.public-inventory header .public-inventory-link { margin-top:0; }
+input:disabled,select:disabled,textarea:disabled { opacity:1; color:#40556d; background:#f6f8fb; }
+@media(max-width:1100px){.dashboard-ready .mobile-nav { grid-template-columns:repeat(4,minmax(0,1fr)); }.dashboard-ready:not(.is-admin) .mobile-nav { grid-template-columns:repeat(3,minmax(0,1fr)); }}
+@media(max-width:740px){.accounts-list { grid-template-columns:1fr; }.account-actions { display:grid; grid-template-columns:1fr 1fr; }.auth-tabs button { font-size:12px; padding:10px 8px; }.session #accountRole { font-size:10px; padding:5px 8px; }.public-inventory header { flex-wrap:wrap; }}

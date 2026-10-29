@@ -19,10 +19,25 @@ export function toRow(item) {
 }
 export function createRepository(client) {
  return {
+  async access(userId) {
+   const member=await client.from('stock_members').select('user_id,role').eq('user_id',userId).maybeSingle();
+   if(member.error)throw Error('Les rôles ne sont pas encore disponibles. Installez les scripts Supabase des comptes et accès.');
+   const request=await client.from('stock_access_requests').select('status,display_name').eq('user_id',userId).maybeSingle();
+   if(request.error)throw Error('Les demandes de compte ne sont pas encore installées dans Supabase.');
+   const role=member.data?.role;
+   return {role:['admin','reader'].includes(role)?role:null,status:member.data?'approved':request.data?.status || 'pending',name:request.data?.display_name || ''};
+  },
+  async accounts(status,offset=0) {
+   const {data,error}=await client.rpc('list_stock_accounts',{p_status:status,p_offset:offset,p_limit:50});
+   if(error)throw error;return data;
+  },
+  async decideAccount(account,status,role,requestId) {
+   const {error}=await client.rpc('decide_stock_account',{p_user_id:account.user_id,p_status:status,p_role:status==='approved'?role:null,p_expected_status:account.status,p_expected_role:account.role,p_request_id:requestId});
+   if(error)throw error;
+  },
   async load(userId) {
-   const member=await client.from('stock_members').select('user_id').eq('user_id',userId).maybeSingle();
-   if(member.error) throw member.error;
-   if(!member.data) throw Error('Votre compte n’est pas encore autorisé à accéder au magasin. Contactez le gestionnaire.');
+   const access=await this.access(userId);
+   if(!access.role)return {access,items:[],history:[]};
    const catalog=await client.from('stock_category_catalog').select('*').order('code');
    if(catalog.error) throw Error('Catégories indisponibles. Appliquez la migration des catégories simples puis actualisez.');
    const categories=catalog.data;
@@ -56,7 +71,7 @@ export function createRepository(client) {
    const names=new Map(items.map(i=>[i.id,i.name]));
    const events=await client.from('stock_asset_events').select('id,action,before_quantity,after_quantity,reason,created_at,stock_assets(designation)').order('created_at',{ascending:false}).limit(20);
    if(events.error) throw Error('Actions de stock indisponibles. Appliquez les deux scripts de gestion du stock puis actualisez.');
-   return {locationEvents:locationEvents.data,deviceFacts,events:events.data,categories,items,history:result.data.map(m=>({name:m.stock_assets?.designation || names.get(m.asset_id)||'Matériel',type:m.movement_type,quantity:m.quantity,date:m.created_at,reason:m.reason}))};
+   return {access,locationEvents:locationEvents.data,deviceFacts,events:events.data,categories,items,history:result.data.map(m=>({name:m.stock_assets?.designation || names.get(m.asset_id)||'Matériel',type:m.movement_type,quantity:m.quantity,date:m.created_at,reason:m.reason}))};
   },
   async locate(item,action,from,to,quantity,reason,requestId) {
    const {error}=await client.rpc('manage_located_stock',{p_asset_id:item.id,p_action:action,p_from:from,p_to:to,p_quantity:quantity,p_expected:[item.stock,item.quantityMi || 0,item.quantityCs || 0],p_reason:reason,p_request_id:requestId});

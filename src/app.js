@@ -8,7 +8,7 @@ import {validatePhoto} from './photos.js';
 import {groupReferences,deviceCode,dateLabel,deviceStatus} from './references.js';
 import {buildDashboard} from './dashboard.js';
 const client=createClient(supabaseUrl,supabasePublishableKey,{
- auth:{persistSession:true,storage:sessionStorage,detectSessionInUrl:false}
+ auth:{persistSession:true,storage:sessionStorage,detectSessionInUrl:true}
 });
 const repository=createRepository(client);
 let session=null, revision=0, inventoryAction=null;
@@ -22,8 +22,29 @@ for (const [name,label,code,max,type] of identificationFields) {
 }
 let editingId = null, pendingPhoto=null, previewObjectUrl=null, creationRequest=null;
 let state = {items:[],history:[]};
+let authMode='login',accountsOffset=0,accountsRevision=0;
+const isAdmin=()=>Boolean(session && state.access?.role==='admin');
+function renderAccess(){
+ const role=state.access?.role;
+ document.body.classList.toggle('is-admin',isAdmin());
+ if(!isAdmin()){accountsRevision++;$('accountsList').replaceChildren();$('refreshAccounts').disabled=false;}
+ document.querySelectorAll('[data-admin]').forEach(el=>{el.hidden=!isAdmin();});
+ $('accountRole').hidden=!role;$('accountRole').textContent=role==='admin'?'Administrateur':role==='reader'?'Lecteur':'';
+ document.querySelector('.auth-tabs').hidden=Boolean(session);
+ $('loginForm').hidden=Boolean(session) || authMode!=='login';$('signupForm').hidden=Boolean(session) || authMode!=='signup';
+ $('showLogin').setAttribute('aria-pressed',String(authMode==='login'));$('showSignup').setAttribute('aria-pressed',String(authMode==='signup'));
+ $('accessPanel').hidden=!session || Boolean(role);$('retry').hidden=!session;
+ const status=state.access?.status;
+ $('accessTitle').textContent=status==='rejected'?'Accès refusé ou retiré':status==='pending'?'Demande en attente':'Vérification de votre accès';
+ $('accessMessage').textContent=status==='rejected'?'Votre compte ne dispose pas d’un accès au magasin. Contactez un administrateur.':status==='pending'?'Votre demande doit être approuvée par un administrateur. Vous pouvez actualiser votre accès après sa validation.':'Actualisez votre accès pour vérifier vos droits.';
+}
+function readonlyForm(form,readonly){
+ form.querySelectorAll('input,select,textarea').forEach(control=>{control.disabled=readonly;});
+ form.querySelector('[type=submit]').hidden=readonly;
+}
+
 function clearInventory() {
- revision++;document.body.classList.remove('dashboard-ready'); state={items:[],history:[]}; render();
+ revision++;accountsRevision++;$('accountsList').replaceChildren();document.body.classList.remove('dashboard-ready'); state={items:[],history:[]}; render();
  $('workspace').hidden=true; $('loginPanel').hidden=false;
  $('itemDialog').close(); $('categoryDialog').close(); $('stockActionDialog').close(); $('trackingDialog').close();$('deviceDialog').close();$('locationDialog').close();
 }
@@ -34,8 +55,12 @@ async function refresh() {
  try {
   const next=await repository.load(session.user.id);
   if(current !== revision) return;
-  state=next; render();document.body.classList.add('dashboard-ready'); $('workspace').hidden=false; $('loginPanel').hidden=true;
-  $('notice').textContent='Données du magasin actualisées.';
+  if(state.access?.role!==next.access?.role)document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close());
+  state=next;render();
+  const approved=Boolean(state.access?.role);
+  document.body.classList.toggle('dashboard-ready',approved);$('workspace').hidden=!approved;$('loginPanel').hidden=approved;
+  $('notice').textContent=approved?'Données du magasin actualisées.':'';
+  if(isAdmin())void refreshAccounts();
  } catch(e) {
   if(current !== revision) return;
   // Ne pas laisser agir sur un stock qui n'a pas pu être relu.
@@ -50,8 +75,7 @@ async function updateSession(next) {
  $('account').textContent=session?.user.email || '';
  $('accountAvatar').textContent=(session?.user.email || 'M').slice(0,1).toUpperCase();
  if(changed || !session) clearInventory();
- $('loginForm').hidden=Boolean(session);
- $('retry').hidden=!session;
+ renderAccess();
  if(session) await refresh();
  else $('notice').textContent='Connectez-vous pour consulter le magasin.';
 }
@@ -142,6 +166,7 @@ function renderDashboard(data,filters){
 }
 $('resetFilters').onclick=()=>{ $('search').value='';for(const id of ['categoryFilter','locationFilter','modeFilter'])$(id).value='';$('onlyAlerts').checked=false;render(); };
 function render() {
+  renderAccess();
   fillCategories($('categoryFilter'),$('categoryFilter').value);
   $('categoryRows').replaceChildren();
   (state.categories || []).forEach(c=>{const tr=document.createElement('tr');tr.append(element('td',c.code),element('td',c.label));$('categoryRows').append(tr);});
@@ -172,11 +197,11 @@ function render() {
     const category=document.createElement('td');category.append(element('span',i.category || '—','category-tag'),element('small',state.categories?.find(c=>c.code===i.category)?.label || 'À classer'));
     tr.append(photo,name,element('td',i.reference || '—'),category,stock,status);
     const action = document.createElement('td'); const button = element('button','MI / CS','secondary'); button.setAttribute('aria-label',`Répartition MI / CS : ${i.name}`);
-    button.onclick = () => { if(i.trackingMode==='individual' || fullReference.members.length>1){void openTracking(fullReference);return;} openLocation(actionItem); };
+    button.onclick = () => { if(!isAdmin() || i.trackingMode==='individual' || fullReference.members.length>1){void openTracking(fullReference);return;} openLocation(actionItem); };
     const edit=element('button','Fiche','secondary'); edit.setAttribute('aria-label',`Fiche : ${i.name}`); edit.onclick=()=>fullReference.members.length>1?openTracking(fullReference):openAsset(actionItem);
     const adjust=element('button','Corriger le stock','secondary');adjust.setAttribute('aria-label',`Corriger le stock : ${i.name}`);adjust.onclick=()=>openLocation(actionItem,'adjust');
     const remove=element('button','Supprimer','danger-outline');remove.setAttribute('aria-label',`Supprimer : ${i.name}`);remove.onclick=()=>openStockAction(actionItem,'archive');
-    action.className='row-actions';const actionButtons=document.createElement('div');actionButtons.className='action-buttons';if(i.trackingMode==='individual'){button.textContent='Appareils';actionButtons.append(edit,button,remove);}else if(fullReference.members.length>1){edit.textContent='Voir les lignes';button.textContent='Suivi individuel';actionButtons.append(edit,button);}else actionButtons.append(edit,button,adjust,remove);action.append(actionButtons);tr.append(action);
+    action.className='row-actions';const actionButtons=document.createElement('div');actionButtons.className='action-buttons';if(!isAdmin()){if(i.trackingMode==='individual'){button.textContent='Appareils';actionButtons.append(edit,button);}else actionButtons.append(edit);}else if(i.trackingMode==='individual'){button.textContent='Appareils';actionButtons.append(edit,button,remove);}else if(fullReference.members.length>1){edit.textContent='Voir les lignes';button.textContent='Suivi individuel';actionButtons.append(edit,button);}else actionButtons.append(edit,button,adjust,remove);action.append(actionButtons);tr.append(action);
     const columns=[['photo','Photo'],['name','Matériel'],['reference','Référence'],['category','Catégorie'],['stock','Stock'],['status','Disponibilité'],['actions','Actions']];
     [...tr.children].forEach((cell,index)=>{cell.classList.add(`cell-${columns[index][0]}`);cell.dataset.label=columns[index][1];cell.setAttribute('role','cell');});
     $('inventory').append(tr);
@@ -197,14 +222,17 @@ function render() {
 }
 $('search').oninput = render; $('onlyAlerts').onchange = render;
 function openAsset(item) {
+ if(!item && !isAdmin())return;
+ readonlyForm($('itemForm'),!isAdmin());
  editingId=item?.id || null; pendingPhoto=null;creationRequest={id:crypto.randomUUID(),signature:null}; $('itemForm').reset(); $('itemError').textContent='';
- $('itemTitle').textContent=item ? 'Fiche du matériel' : 'Ajouter du matériel';
+ $('itemTitle').textContent=item ? (isAdmin()?'Fiche du matériel':'Consulter le matériel') : 'Ajouter du matériel';
  for(const control of $('itemForm').elements) if(control.name && item && control.name!=='category') control.value=item[control.name] ?? '';
  fillCategories($('itemForm').elements.category,item?.category || '','Choisir une catégorie');
  $('photoFile').value='';$('removePhoto').checked=false;$('removePhoto').disabled=!item?.photoPath;
  showPhoto(item?.photoUrl || '');
  $('itemForm').elements.stock.disabled=Boolean(item);
  $('trackingMode').disabled=Boolean(item);$('trackingMode').value=item?.trackingMode || 'quantity';syncTrackingMode();
+ if(!isAdmin())readonlyForm($('itemForm'),true);
  $('stockHelp').textContent=item?.trackingMode==='individual'?'Pour modifier ce stock, ajoutez ou retirez un appareil depuis le chiffre du stock.':item?'Pour modifier la quantité, enregistrez un mouvement.':'Quantité initiale du matériel.';
  $('itemDialog').showModal();
 }
@@ -212,7 +240,7 @@ $('add').onclick = () => openAsset();
 for(const id of ['categoryFilter','locationFilter','modeFilter']) $(id).onchange=render;
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('dialog').close());
 $('itemForm').onsubmit = async event => {
-  event.preventDefault(); const form=event.currentTarget; const submit=form.querySelector('[type=submit]'); if(submit.disabled || !session) return;
+  event.preventDefault(); const form=event.currentTarget; const submit=form.querySelector('[type=submit]'); if(submit.disabled || !isAdmin()) return;
   const data = new FormData(form);
   const previous=state.items.find(i => i.id === editingId);
   const item = {...previous,id:editingId || crypto.randomUUID(),name:data.get('name').trim(),reference:data.get('reference').trim(),location:data.get('location').trim(),stock:previous ? previous.stock : Number(data.get('stock')),minimum:Number(data.get('minimum'))};
@@ -240,6 +268,7 @@ $('itemForm').onsubmit = async event => {
   } catch(e) { $('itemError').textContent=e.message; } finally { submit.disabled=false; }
 };
 function openStockAction(item,action) {
+ if(!isAdmin())return;
  inventoryAction={item,action,id:crypto.randomUUID(),signature:null};
  $('stockActionForm').reset();$('stockActionError').textContent='';
  $('stockActionTitle').textContent=action==='adjust'?'Corriger le stock':'Supprimer la ligne du stock';
@@ -256,7 +285,7 @@ function openStockAction(item,action) {
 }
 $('stockActionForm').onsubmit=async event=>{
  event.preventDefault();const form=event.currentTarget,submit=$('stockActionSubmit');
- if(submit.disabled || !session || !inventoryAction) return;
+ if(submit.disabled || !isAdmin() || !inventoryAction) return;
  const {item,action}=inventoryAction;const quantity=action==='archive'?item.stock:Number(form.elements.quantity.value),reason=form.elements.reason.value.trim();
  try {
   if(!Number.isSafeInteger(quantity) || quantity<0 || quantity>1000000) throw Error('Saisissez une quantité entière entre 0 et 1 000 000.');
@@ -284,20 +313,20 @@ async function openTracking(reference,keepLocation=false){
  $('trackingSummary').textContent=`${reference.stock} ${reference.trackingMode==='individual'?'appareils':'unités'} · ${categoryLabel(reference.category)}`;
  $('deviceLocationFilterLabel').hidden=reference.trackingMode!=='individual';if(!keepLocation)$('deviceLocationFilter').value=$('locationFilter').value;
  $('trackingError').textContent='';$('devicesList').replaceChildren();$('quantityLines').replaceChildren();$('convertForm').reset();$('conversionError').textContent='';
- $('addDevice').hidden=true;$('convertForm').hidden=reference.trackingMode==='individual';
+ $('addDevice').hidden=true;$('convertForm').hidden=!isAdmin() || reference.trackingMode==='individual';
  if(!$('trackingDialog').open)$('trackingDialog').showModal();
  if(reference.trackingMode==='individual'){
   try {
    const allDevices=await repository.devices(reference.id);
    const devices=allDevices.filter(d=>!$('deviceLocationFilter').value || (d.physical_location || 'UNSET')===$('deviceLocationFilter').value);
    if(ticket!==trackingLoad || !session)return;
-   $('addDevice').hidden=false;
+   $('addDevice').hidden=!isAdmin();
    if(!devices.length)$('devicesList').append(element('p','Aucun appareil dans cet emplacement. Vous pouvez modifier le filtre ou ajouter un appareil sans numéro de série.'));
    devices.forEach(device=>{
     const card=element('article','','device-card');card.append(element('h3',deviceCode(device)));
     const dl=document.createElement('dl');
     for(const [label,value] of [['Numéro de série',device.serial_number || 'Non renseigné'],['Date d’achat',dateLabel(device.purchased_at)],['Fin de garantie',dateLabel(device.warranty_until)],['Disponibilité',deviceStatus[device.status]],['Emplacement physique',physicalLocations[device.physical_location || 'UNSET']]])dl.append(element('dt',label),element('dd',value));
-    const edit=element('button','Compléter / modifier','secondary');edit.onclick=()=>openDevice(device);card.append(dl,edit);$('devicesList').append(card);
+    const edit=element('button',isAdmin()?'Compléter / modifier':'Consulter','secondary');edit.onclick=()=>openDevice(device);card.append(dl,edit);$('devicesList').append(card);
    });
   } catch(e){if(ticket===trackingLoad)$('trackingError').textContent=e.message;}
  } else {
@@ -310,13 +339,13 @@ async function openTracking(reference,keepLocation=false){
    const adjust=element('button','Corriger cette quantité','secondary');adjust.onclick=()=>{ $('trackingDialog').close();openLocation(item,'adjust'); };
    const archive=element('button','Supprimer cette ligne','danger-outline');archive.onclick=()=>{ $('trackingDialog').close();openStockAction(item,'archive'); };
    const locate=element('button','Répartir / transférer MI / CS','secondary');locate.onclick=()=>{ $('trackingDialog').close();openLocation(item); };
-   controls.append(edit,locate,adjust,archive);row.append(controls);$('quantityLines').append(row);
+   if(isAdmin())controls.append(edit,locate,adjust,archive);else controls.append(edit);row.append(controls);$('quantityLines').append(row);
   }
   $('convertForm').elements.count.value=reference.stock<=500?reference.stock:'';
  }
 }
 $('convertForm').onsubmit=async event=>{
- event.preventDefault();const form=event.currentTarget,submit=form.querySelector('[type=submit]');if(submit.disabled || !session)return;
+ event.preventDefault();const form=event.currentTarget,submit=form.querySelector('[type=submit]');if(submit.disabled || !isAdmin())return;
  const count=Number(form.elements.count.value),reason=form.elements.reason.value.trim();
  try {
   if(!Number.isSafeInteger(count)||count<0||count>500||!reason||!form.elements.confirm.checked)throw Error('Confirmez un nombre de 0 à 500 appareils et renseignez le motif.');
@@ -328,9 +357,11 @@ $('convertForm').onsubmit=async event=>{
  } catch(e){$('conversionError').textContent=e.message;}finally{submit.disabled=false;}
 };
 function openDevice(device=null){
+ if(!device && !isAdmin())return;
+ readonlyForm($('deviceForm'),!isAdmin());
  editingDevice=device;deviceRequest={id:crypto.randomUUID(),signature:null};$('deviceForm').reset();$('deviceError').textContent='';
  $('deviceTitle').textContent=device?deviceCode(device):'Ajouter un appareil';
- $('retireDevice').hidden=!device;
+ $('retireDevice').hidden=!device || !isAdmin();
  for(const key of ['serial_number','purchased_at','warranty_until','notes'])$('deviceForm').elements[key].value=device?.[key] || '';
  $('deviceForm').elements.physical_location.value=device?.physical_location || $('deviceLocationFilter').value || 'UNSET';
  $('deviceForm').elements.status.value=device?.status || 'available';$('deviceDialog').showModal();
@@ -338,7 +369,7 @@ function openDevice(device=null){
 $('deviceLocationFilter').onchange=()=>openTracking(trackingReference,true);
 $('addDevice').onclick=()=>openDevice();
 async function saveDevice(action){
- if($('saveDevice').disabled || !session)return;
+ if($('saveDevice').disabled || !isAdmin())return;
  const form=$('deviceForm'),data=Object.fromEntries(new FormData(form));
  try {
   const signature=JSON.stringify([action,data]);if(deviceRequest.signature && deviceRequest.signature!==signature)deviceRequest.id=crypto.randomUUID();deviceRequest.signature=signature;
@@ -353,10 +384,10 @@ async function saveDevice(action){
 $('deviceForm').onsubmit=event=>{event.preventDefault();void saveDevice(editingDevice?'save':'create');};
 $('retireDevice').onclick=()=>{if(confirm('Retirer cet appareil du stock ? Sa fiche et son historique seront conservés.'))void saveDevice('retire');};
 
-$('manageCategories').onclick=()=>{ $('categoryForm').reset();$('categoryError').textContent='';$('categoryDialog').showModal(); };
+$('manageCategories').onclick=()=>{if(!isAdmin())return; $('categoryForm').reset();$('categoryError').textContent='';$('categoryDialog').showModal(); };
 $('categoryForm').onsubmit=async event=>{
  event.preventDefault();const form=event.currentTarget,submit=form.querySelector('[type=submit]');
- if(submit.disabled || !session) return;
+ if(submit.disabled || !isAdmin()) return;
  const data=new FormData(form),code=data.get('code').trim().toUpperCase(),label=data.get('label').trim();
  try {
   if(!/^[A-Z0-9_]{1,10}$/.test(code) || !label || label.length>50) throw Error('Code : 1 à 10 lettres/chiffres ; libellé : 1 à 50 caractères.');
@@ -374,6 +405,7 @@ function syncLocationAction(){
  if(action==='adjust' && locationAction)form.elements.quantity.value=locationCounts(locationAction.item)[form.elements.from.value];
 }
 function openLocation(item,action='transfer'){
+ if(!isAdmin())return;
  locationAction={item,id:crypto.randomUUID(),signature:null};$('locationForm').reset();$('locationError').textContent='';
  $('locationName').textContent=`${item.name} · Stock total : ${item.stock}`;$('locationCurrent').textContent=locationSummary(item);
  const form=$('locationForm');form.elements.action.value=action;
@@ -382,7 +414,7 @@ function openLocation(item,action='transfer'){
 }
 $('locationForm').elements.action.onchange=syncLocationAction;$('locationForm').elements.from.onchange=syncLocationAction;
 $('locationForm').onsubmit=async event=>{
- event.preventDefault();const form=event.currentTarget,submit=form.querySelector('[type=submit]');if(submit.disabled || !session || !locationAction)return;
+ event.preventDefault();const form=event.currentTarget,submit=form.querySelector('[type=submit]');if(submit.disabled || !isAdmin() || !locationAction)return;
  const data=Object.fromEntries(new FormData(form)),quantity=Number(data.quantity);
  try {
   if(!Number.isSafeInteger(quantity) || quantity<0 || quantity>1000000 || (data.action!=='adjust' && quantity===0))throw Error('Saisissez une quantité entière valide.');
@@ -391,6 +423,61 @@ $('locationForm').onsubmit=async event=>{
   $('locationDialog').close();await afterWrite(data.action==='transfer'?'Répartition mise à jour. Le stock total est conservé.':'Stock de l’emplacement mis à jour et historique enregistré.');
  }catch(e){$('locationError').textContent=e.message;}finally{submit.disabled=false;}
 };
+function selectAuthMode(mode){authMode=mode;$('loginError').textContent='';$('signupError').textContent='';$('authMessage').textContent='';renderAccess();}
+$('showLogin').onclick=()=>selectAuthMode('login');$('showSignup').onclick=()=>selectAuthMode('signup');
+$('signupForm').onsubmit=async event=>{
+ event.preventDefault();const form=event.currentTarget,submit=form.querySelector('[type=submit]');if(submit.disabled || session)return;
+ const data=new FormData(form);$('signupError').textContent='';$('authMessage').textContent='';
+ if(data.get('password')!==data.get('confirmation')){$('signupError').textContent='Les deux mots de passe doivent être identiques.';return;}
+ submit.disabled=true;
+ try {
+  const {data:result,error}=await client.auth.signUp({email:data.get('email').trim(),password:data.get('password'),options:{emailRedirectTo:new URL('/',location.href).href,data:{display_name:data.get('display_name').trim()}}});
+  if(error)throw error;
+  form.reset();authMode='login';renderAccess();
+  $('authMessage').textContent='Si votre adresse permet une inscription, un message de confirmation vous sera envoyé. Confirmez votre adresse, puis connectez-vous. L’accès au magasin nécessite aussi l’accord d’un administrateur.';
+  if(result.session)await updateSession(result.session);
+ }catch(e){$('signupError').textContent=e.status===429?'Trop de demandes. Patientez avant de réessayer.':'Inscription impossible. Vérifiez les informations saisies ou contactez un administrateur.';}
+ finally{submit.disabled=false;}
+};
+async function refreshAccounts(){
+ if(!isAdmin())return;
+ const ticket=++accountsRevision;$('refreshAccounts').disabled=true;$('accountsError').textContent='';$('accountsList').replaceChildren();
+ try {
+  const rows=await repository.accounts($('accountStatusFilter').value,accountsOffset);
+  if(ticket!==accountsRevision || !isAdmin())return;
+  $('accountsPage').textContent=`Page ${accountsOffset/50+1}`;$('previousAccounts').disabled=accountsOffset===0;$('nextAccounts').disabled=rows.length<50;
+  if(!rows.length)$('accountsList').append(element('p','Aucun compte dans cette sélection.'));
+  for(const account of rows){
+   const card=element('article','','account-card');card.append(element('h3',account.display_name || 'Nom non renseigné'),element('p',account.email));
+   const status={pending:'En attente',approved:'Autorisé',rejected:'Refusé / accès retiré'}[account.status];
+   card.append(element('p',`${status} · ${account.email_confirmed?'E-mail confirmé':'E-mail à confirmer'}`));
+   if(account.user_id===session.user.id){card.append(element('small','Votre compte administrateur — modification de votre propre accès désactivée.'));}
+   else {
+    const label=element('label','Rôle à attribuer');const select=document.createElement('select');select.append(new Option('Lecteur','reader'),new Option('Administrateur','admin'));select.value=account.role || 'reader';label.append(select);card.append(label);
+    const controls=element('div','','account-actions');
+    const accept=element('button',account.status==='approved'?'Enregistrer le rôle':'Accepter');accept.disabled=!account.email_confirmed;
+    accept.onclick=()=>decideAccount(account,'approved',select.value,card);
+    const reject=element('button',account.status==='approved'?'Retirer l’accès':'Refuser','danger-outline');reject.disabled=account.status==='rejected';
+    reject.onclick=()=>{if(confirm(account.status==='approved'?`Retirer l’accès au magasin à ${account.email} ?`:`Refuser la demande de ${account.email} ?`))void decideAccount(account,'rejected',null,card);};
+    controls.append(accept,reject);card.append(controls);
+   }
+   $('accountsList').append(card);
+  }
+ }catch(e){if(ticket===accountsRevision)$('accountsError').textContent=e.message;}
+ finally{if(ticket===accountsRevision)$('refreshAccounts').disabled=false;}
+}
+async function decideAccount(account,status,role,card){
+ if(!isAdmin())return;
+ if(status==='approved' && role==='admin' && !confirm(`Accorder les droits administrateur à ${account.email} ?`))return;
+ const ticket=accountsRevision;card.querySelectorAll('button,select').forEach(el=>{el.disabled=true;});$('accountsMessage').textContent='';
+ try {
+  await repository.decideAccount(account,status,role,crypto.randomUUID());
+  if(ticket!==accountsRevision || !isAdmin())return;
+  $('accountsMessage').textContent=status==='approved'?'Accès et rôle enregistrés.':'Demande refusée ou accès retiré.';await refreshAccounts();
+ }catch(e){if(ticket===accountsRevision){$('accountsError').textContent=e.message;await refreshAccounts();$('accountsError').textContent=e.message;}}
+}
+$('refreshAccounts').onclick=refreshAccounts;$('accountStatusFilter').onchange=()=>{accountsOffset=0;void refreshAccounts();};
+$('previousAccounts').onclick=()=>{accountsOffset=Math.max(0,accountsOffset-50);void refreshAccounts();};$('nextAccounts').onclick=()=>{accountsOffset+=50;void refreshAccounts();};
 $('loginForm').onsubmit=async event=>{
  event.preventDefault(); const form=event.currentTarget,submit=form.querySelector('[type=submit]');
  if(submit.disabled) return;
@@ -414,12 +501,12 @@ client.auth.onAuthStateChange((event,next)=>{
  if(event === 'SIGNED_OUT') void updateSession(null);
  if(event === 'TOKEN_REFRESHED') session=next;
 });
-const navigationLinks=[...document.querySelectorAll('.app-sidebar nav a,.mobile-nav a')];
+const navigationLinks=[...document.querySelectorAll('.app-sidebar nav a[href^="#"],.mobile-nav a[href^="#"],.admin-navigation')];
 function markSection(id){navigationLinks.forEach(link=>{if(link.hash===`#${id}`)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');});}
 navigationLinks.forEach(link=>link.addEventListener('click',()=>markSection(link.hash.slice(1))));
 if(typeof IntersectionObserver!=='undefined'){
  const observer=new IntersectionObserver(entries=>{const visible=entries.find(entry=>entry.isIntersecting);if(visible)markSection(visible.target.id);},{rootMargin:'-10% 0px -60% 0px'});
- for(const id of ['overview','inventory-section','activity-section'])observer.observe($(id));
+ for(const id of ['overview','activity-section','accounts-section'])observer.observe($(id));
 }
 render();
 try {

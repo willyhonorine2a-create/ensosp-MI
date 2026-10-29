@@ -92,3 +92,5 @@ Voir [les règles de calcul et le périmètre](docs/dashboard.md). Aucune migrat
 SQL supplémentaire n'est nécessaire pour cette présentation.
 
 Emplacements physiques : [MI / CS, installation et utilisation](docs/physical-locations.md).
+
+Comptes et rôles : [installation et gestion des accès](docs/accounts-access.md).

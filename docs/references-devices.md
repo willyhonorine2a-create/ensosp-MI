@@ -42,7 +42,7 @@ Une fiche modifiée depuis son chargement est refusée grâce à updated_at.
 Les numéros de série sont facultatifs ; lorsqu'ils sont renseignés, ils doivent
 être uniques parmi les appareils actifs d'une même référence.
 
-Les RPC utilisent les droits d'appartenance stock_members ; les tables ne sont
+Depuis la migration 019, les RPC d’écriture exigent le rôle administrateur dans stock_members ; les tables ne sont
 pas ouvertes en écriture au navigateur. Les créations de références, conversions
 et opérations d'appareils ont des identifiants de requête protégeant des doubles
 envois. Les traces sont conservées dans stock_tracking_events et
@@ -96,3 +96,5 @@ maintenance, l'ajout vide et le retrait, la création en quantité sans appareil
 et les tailles d'écran 320, 390, 768, 1024, 1280 et 1440 pixels.
 L'installation distante et le comptage physique restent à vérifier par le
 propriétaire ; l'agent ne dispose pas d'accès administrateur Supabase.
+
+Depuis les migrations 018 à 021, la consultation est réservée aux comptes approuvés et les écritures aux administrateurs. Voir [Comptes et rôles](accounts-access.md) pour la procédure actuelle de validation des demandes.
