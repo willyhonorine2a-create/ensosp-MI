@@ -6,4 +6,5 @@ await cp('public','dist',{recursive:true});
 await copyFile('index.html','dist/index.html');
 await copyFile('src/style.css','dist/src/style.css');
 await build({entryPoints:['src/app.js'],bundle:true,format:'esm',target:'es2022',outfile:'dist/src/app.js',minify:true});
+await build({entryPoints:['src/inventory-app.js'],bundle:true,format:'esm',target:'es2022',outfile:'dist/inventaire/app.js',minify:true});
 console.log('Build terminé : dist/');

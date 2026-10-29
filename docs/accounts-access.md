@@ -56,10 +56,10 @@ Le retrait supprime l'autorisation dans `stock_members`, pas le compte Auth ni l
 
 ## Inventaire public
 
-`/inventaire/` est une page statique sans formulaire, sans SDK Supabase et sans données. L'entrée « Inventaire » du menu ouvre cette page, accessible sans connexion. Le tableau de stock actuel est conservé dans la vue d'ensemble sous « Stock du magasin » ; aucune donnée n'est rendue publique. La future fonction d'inventaire pourra être développée dans cet espace indépendamment de la gestion privée.
+`/inventaire/` est une rubrique publique de consultation des fiches d'engins, sans SDK Supabase ni accès aux tables privées. Le parc fourni et la fiche FPT 18 ont été publiés sur instruction du gestionnaire ; voir [Inventaires publics](public-inventory.md). Le tableau de stock actuel reste dans la vue d'ensemble sous « Stock du magasin » et demeure privé.
 
 ## Validation
 
-Les tests SQL vérifient l'inscription sans privilège, la lecture seule, les neuf RPC d'écriture, l'accès anonyme et en attente/refusé, l'interdiction de s'auto-promouvoir, les décisions rejouées et obsolètes, les photos et la conservation des rôles après réinstallation. Les essais navigateur couvrent inscription, lecture seule des sous-fiches, approbation/refus/changement de rôle, retrait et effacement de session privée, et la page publique sans appel Supabase. Ils utilisent des données de test ; aucun compte réel n'est créé par ces essais.
+Les tests SQL vérifient l'inscription sans privilège, la lecture seule, les neuf RPC d'écriture, l'accès anonyme et en attente/refusé, l'interdiction de s'auto-promouvoir, les décisions rejouées et obsolètes, les photos et la conservation des rôles après réinstallation. Les essais navigateur couvrent inscription, lecture seule des sous-fiches, approbation/refus/changement de rôle, retrait et effacement de session privée, et l'absence d'appel Supabase depuis la rubrique publique. Ils utilisent des données de test ; aucun compte réel n'est créé par ces essais.
 
 Si l’ancienne étape 2 indique « Fonction à vérifier », exécuter la pièce jointe corrigée `comptes-acces-etape-2-corrige.sql`, puis poursuivre avec les étapes 3 et 4. L’étape 1 n’a pas à être rejouée.

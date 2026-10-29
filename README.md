@@ -94,3 +94,5 @@ SQL supplémentaire n'est nécessaire pour cette présentation.
 Emplacements physiques : [MI / CS, installation et utilisation](docs/physical-locations.md).
 
 Comptes et rôles : [installation et gestion des accès](docs/accounts-access.md).
+
+Inventaires des engins : [consultation publique et import des fiches](docs/public-inventory.md).

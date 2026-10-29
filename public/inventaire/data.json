@@ -1,0 +1,746 @@
+{
+  "fleetSource": "parc engins 2026_valide.xlsx",
+  "fleetYear": 2026,
+  "vehicles": [
+    {
+      "id": "fpt-18",
+      "name": "FPT 18",
+      "registration": "ES-676-MV",
+      "center": "ALPHA",
+      "sheetId": "fpt-18"
+    },
+    {
+      "id": "fptl-21",
+      "name": "FPTL 21",
+      "registration": "FE-039-HM",
+      "center": "ALPHA",
+      "sheetId": null
+    },
+    {
+      "id": "vsav-11",
+      "name": "VSAV 11",
+      "registration": "EW-007-DQ",
+      "center": "ALPHA",
+      "sheetId": null
+    },
+    {
+      "id": "vlcg-01",
+      "name": "VLCG 1",
+      "registration": "DC-787-JZ",
+      "center": "ALPHA",
+      "sheetId": null
+    },
+    {
+      "id": "vlsecu-12",
+      "name": "VLSECU 12",
+      "registration": "FQ-716-AZ",
+      "center": "ALPHA",
+      "sheetId": null
+    },
+    {
+      "id": "fpt-17",
+      "name": "FPT 17",
+      "registration": "ES-590-MV",
+      "center": "BRAVO",
+      "sheetId": null
+    },
+    {
+      "id": "fptl-20",
+      "name": "FPTL 20",
+      "registration": "FE-373-HM",
+      "center": "BRAVO",
+      "sheetId": null
+    },
+    {
+      "id": "vsav-16",
+      "name": "VSAV 16",
+      "registration": "HR-688-JP",
+      "center": "BRAVO",
+      "sheetId": null
+    },
+    {
+      "id": "vlcg-02",
+      "name": "VLCG 2",
+      "registration": "DC-805-JZ",
+      "center": "BRAVO",
+      "sheetId": null
+    },
+    {
+      "id": "vlsecu-13",
+      "name": "VLSECU 13",
+      "registration": "FQ-752-AZ",
+      "center": "BRAVO",
+      "sheetId": null
+    },
+    {
+      "id": "fpt-11",
+      "name": "FPT 11",
+      "registration": "AB-942-YA",
+      "center": "CHARLIE",
+      "sheetId": null
+    },
+    {
+      "id": "fptl-19",
+      "name": "FPTL19",
+      "registration": "FE-705-HM",
+      "center": "CHARLIE",
+      "sheetId": null
+    },
+    {
+      "id": "vsav-09",
+      "name": "VSAV 9",
+      "registration": "EW-182-DQ",
+      "center": "CHARLIE",
+      "sheetId": null
+    },
+    {
+      "id": "vlcg-11",
+      "name": "VLCG 11",
+      "registration": "AQ-721-WD",
+      "center": "CHARLIE",
+      "sheetId": null
+    },
+    {
+      "id": "vlsecu-14",
+      "name": "VLSECU 14",
+      "registration": "FQ-760-AZ",
+      "center": "CHARLIE",
+      "sheetId": null
+    },
+    {
+      "id": "ccrmsr-23",
+      "name": "CCRMSR 23",
+      "registration": "HJ-616-MH",
+      "center": "ECHO",
+      "sheetId": null
+    },
+    {
+      "id": "fpt-13",
+      "name": "FPT 13",
+      "registration": "EP-524-ST",
+      "center": "ECHO",
+      "sheetId": null
+    },
+    {
+      "id": "vsav-10",
+      "name": "VSAV 10",
+      "registration": "EW-885-DP",
+      "center": "ECHO",
+      "sheetId": null
+    },
+    {
+      "id": "vlcg-04",
+      "name": "VLCG 4",
+      "registration": "DC-759-JZ",
+      "center": "ECHO",
+      "sheetId": null
+    },
+    {
+      "id": "vlsecu-15",
+      "name": "VLSECU 15",
+      "registration": "FQ-826-TJ",
+      "center": "ECHO",
+      "sheetId": null
+    },
+    {
+      "id": "fpt-15",
+      "name": "FPT 15",
+      "registration": "EP-546-ST",
+      "center": "GOLF",
+      "sheetId": null
+    },
+    {
+      "id": "fpt-10",
+      "name": "FPT 10",
+      "registration": "AB-932-YA",
+      "center": "GOLF",
+      "sheetId": null
+    },
+    {
+      "id": "vsav-14",
+      "name": "VSAV 14",
+      "registration": "FM-455-DZ",
+      "center": "GOLF",
+      "sheetId": null
+    },
+    {
+      "id": "vlcg-05",
+      "name": "VLCG 5",
+      "registration": "DC-722-JZ",
+      "center": "GOLF",
+      "sheetId": null
+    },
+    {
+      "id": "vlsecu-18",
+      "name": "VLSECU 18",
+      "registration": "HA-444-QX",
+      "center": "GOLF",
+      "sheetId": null
+    },
+    {
+      "id": "ccrmsr-22",
+      "name": "CCRMSR 22",
+      "registration": "GN-626-YJ",
+      "center": "HOTEL",
+      "sheetId": null
+    },
+    {
+      "id": "fpt-14",
+      "name": "FPT 14",
+      "registration": "EP-535-ST",
+      "center": "HOTEL",
+      "sheetId": null
+    },
+    {
+      "id": "vsav-12",
+      "name": "VSAV 12",
+      "registration": "FM-431-DZ",
+      "center": "HOTEL",
+      "sheetId": null
+    },
+    {
+      "id": "vltt-05",
+      "name": "VLTT 5",
+      "registration": "GQ-934-NG",
+      "center": "HOTEL",
+      "sheetId": null
+    },
+    {
+      "id": "vlsecu-19",
+      "name": "VLSECU 19",
+      "registration": "HA-136-QQ",
+      "center": "HOTEL",
+      "sheetId": null
+    },
+    {
+      "id": "fpt-09",
+      "name": "FPT 09",
+      "registration": "DC-389-JR",
+      "center": "INDIA",
+      "sheetId": null
+    },
+    {
+      "id": "fpt-16",
+      "name": "FPT 16",
+      "registration": "ES-512-MV",
+      "center": "INDIA",
+      "sheetId": null
+    },
+    {
+      "id": "vsav-15",
+      "name": "VSAV 15",
+      "registration": "GK-044-QH",
+      "center": "INDIA",
+      "sheetId": null
+    },
+    {
+      "id": "vlcg-03",
+      "name": "VLCG 3",
+      "registration": "DC-795-JZ",
+      "center": "INDIA",
+      "sheetId": null
+    },
+    {
+      "id": "vlsecu-20",
+      "name": "VLSECU 20",
+      "registration": "HC-358-HE",
+      "center": "INDIA",
+      "sheetId": null
+    },
+    {
+      "id": "epas-04",
+      "name": "EPAS 4",
+      "registration": "EB-800-YM",
+      "center": "MUTUALISE",
+      "sheetId": null
+    },
+    {
+      "id": "epas-05",
+      "name": "EPAS 5",
+      "registration": "EJ-933-BT",
+      "center": "MUTUALISE",
+      "sheetId": null
+    },
+    {
+      "id": "epas-06",
+      "name": "EPAS 6",
+      "registration": "ES-287-AJ",
+      "center": "MUTUALISE",
+      "sheetId": null
+    },
+    {
+      "id": "vsr-04",
+      "name": "VSR 4",
+      "registration": "EL-016-BC",
+      "center": "MUTUALISE",
+      "sheetId": null
+    },
+    {
+      "id": "vsr-05",
+      "name": "VSR 5",
+      "registration": "ER-145-AZ",
+      "center": "MUTUALISE",
+      "sheetId": null
+    },
+    {
+      "id": "vsav-05",
+      "name": "VSAV 5",
+      "registration": "DC-797-JR",
+      "center": "MUTUALISE",
+      "sheetId": null
+    },
+    {
+      "id": "vsav-06",
+      "name": "VSAV 6",
+      "registration": "DC-788-JR",
+      "center": "MUTUALISE",
+      "sheetId": null
+    },
+    {
+      "id": "pcs-01",
+      "name": "PCS 1",
+      "registration": "FV-340-NK",
+      "center": "MUTUALISE",
+      "sheetId": null
+    },
+    {
+      "id": "pcc-01",
+      "name": "PCC 1",
+      "registration": "FP-312-SR",
+      "center": "MUTUALISE",
+      "sheetId": null
+    },
+    {
+      "id": "pcc-02",
+      "name": "PCC 2",
+      "registration": "FP-527-SR",
+      "center": "MUTUALISE",
+      "sheetId": null
+    },
+    {
+      "id": "vsav-ops-13",
+      "name": "VSAV OPS 13",
+      "registration": "FM-446-DZ",
+      "center": "OPE",
+      "sheetId": null
+    }
+  ],
+  "sheets": [
+    {
+      "id": "fpt-18",
+      "name": "FPT 18",
+      "registration": "ES-676-MV",
+      "updatedAt": "29/04/2026",
+      "version": "01",
+      "source": "FPT 18.xlsx",
+      "sections": [
+        {
+          "id": "a-10",
+          "label": "CABINE AVANT",
+          "items": [
+            {
+              "designation": "GHV cond \"orange\" + CA jaune",
+              "quantity": 2,
+              "quantityText": "1+1",
+              "sourceCell": "A12"
+            },
+            {
+              "designation": "Lampe sur chargeur",
+              "quantity": 2,
+              "quantityText": "2",
+              "sourceCell": "A13"
+            },
+            {
+              "designation": "Tableau de contrôle ARI",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "A14"
+            },
+            {
+              "designation": "Rubalise",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "A15"
+            }
+          ]
+        },
+        {
+          "id": "a-17",
+          "label": "CABINE ARRIERE",
+          "items": [
+            {
+              "designation": "Commande",
+              "quantity": 2,
+              "quantityText": "2",
+              "sourceCell": "A19"
+            },
+            {
+              "designation": "Extincteur poudre 9 Kg \"plombé\"",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "A20"
+            },
+            {
+              "designation": "ARI",
+              "quantity": 4,
+              "quantityText": "4",
+              "sourceCell": "A21"
+            },
+            {
+              "designation": "Bouteille air de réserve sous banquette",
+              "quantity": 4,
+              "quantityText": "4",
+              "sourceCell": "A22"
+            },
+            {
+              "designation": "Liaison personnelle",
+              "quantity": 2,
+              "quantityText": "2",
+              "sourceCell": "A23"
+            },
+            {
+              "designation": "BSL",
+              "quantity": 4,
+              "quantityText": "4",
+              "sourceCell": "A24"
+            }
+          ]
+        },
+        {
+          "id": "a-25",
+          "label": "COFFRE 1",
+          "items": [
+            {
+              "designation": "Flotteur",
+              "quantity": 2,
+              "quantityText": "2",
+              "sourceCell": "A27"
+            },
+            {
+              "designation": "Crépine d'aspiration",
+              "quantity": 2,
+              "quantityText": "2",
+              "sourceCell": "A28"
+            }
+          ]
+        },
+        {
+          "id": "a-29",
+          "label": "COFFRE 1 · COFFRE DU BAS",
+          "items": [
+            {
+              "designation": "Cale véhicule",
+              "quantity": 2,
+              "quantityText": "2",
+              "sourceCell": "A30"
+            },
+            {
+              "designation": "Paire de DFT",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "A31"
+            }
+          ]
+        },
+        {
+          "id": "f-18",
+          "label": "COFFRE 2",
+          "items": [
+            {
+              "designation": "Etrangleur",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "F20"
+            },
+            {
+              "designation": "Cône poly-mousse ø 40",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "F21"
+            },
+            {
+              "designation": "Obturateur de fuite ø 45",
+              "quantity": 2,
+              "quantityText": "2",
+              "sourceCell": "F22"
+            },
+            {
+              "designation": "Tuyau ø 70 - 20 m",
+              "quantity": 2,
+              "quantityText": "2",
+              "sourceCell": "F23"
+            },
+            {
+              "designation": "Tuyau ø 45 - 20 m",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "F24"
+            },
+            {
+              "designation": "Clé de barrage",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "F25"
+            },
+            {
+              "designation": "Rideau stop fumée",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "F26"
+            }
+          ]
+        },
+        {
+          "id": "k-18",
+          "label": "COFFRE 3",
+          "items": [
+            {
+              "designation": "LDV 1000",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "K20"
+            },
+            {
+              "designation": "Lance queue de paon ø 40",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "K21"
+            },
+            {
+              "designation": "Réduction ø 100 / ø 65",
+              "quantity": 2,
+              "quantityText": "2",
+              "sourceCell": "K22"
+            },
+            {
+              "designation": "Réduction ø 65 / ø 40",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "K23"
+            },
+            {
+              "designation": "Réduction ø 40 / ø GFR",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "K24"
+            },
+            {
+              "designation": "Collecteur d'alimentation",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "K25"
+            },
+            {
+              "designation": "Retenue",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "K26"
+            }
+          ]
+        },
+        {
+          "id": "k-27",
+          "label": "COFFRE 3 · COFFRE DU BAS",
+          "items": [
+            {
+              "designation": "Tuyau ø 110 - 10m",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "K28"
+            },
+            {
+              "designation": "Tuyau ø 70 - 10m",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "K29"
+            },
+            {
+              "designation": "Coude d'alimentation",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "K30"
+            },
+            {
+              "designation": "Clé de poteau",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "K31"
+            }
+          ]
+        },
+        {
+          "id": "a-40",
+          "label": "COFFRE 4",
+          "items": [
+            {
+              "designation": "Tuyau d'aspiration ø 110 - 2m",
+              "quantity": 7,
+              "quantityText": "7",
+              "sourceCell": "A42"
+            }
+          ]
+        },
+        {
+          "id": "a-43",
+          "label": "COFFRE 4 · COFFRE DU BAS",
+          "items": [
+            {
+              "designation": "Ligne Guide",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "A44"
+            }
+          ]
+        },
+        {
+          "id": "a-45",
+          "label": "COFFRE 5",
+          "items": [
+            {
+              "designation": "Tuyau épaulé en \"O\" ø 45 - 20 m",
+              "quantity": 2,
+              "quantityText": "2",
+              "sourceCell": "A47"
+            },
+            {
+              "designation": "Tuyau épaulé en \"Z\" ø 45 - 20 m",
+              "quantity": 4,
+              "quantityText": "4",
+              "sourceCell": "A48"
+            },
+            {
+              "designation": "Manchon Dimatex",
+              "quantity": 6,
+              "quantityText": "6",
+              "sourceCell": "A49"
+            },
+            {
+              "designation": "LDV 500 \"une sur chaque O\"",
+              "quantity": 2,
+              "quantityText": "2",
+              "sourceCell": "A50"
+            }
+          ]
+        },
+        {
+          "id": "a-51",
+          "label": "COFFRE 6",
+          "items": [
+            {
+              "designation": "Cône de lubeck",
+              "quantity": 3,
+              "quantityText": "3",
+              "sourceCell": "A53"
+            },
+            {
+              "designation": "Triangle de signalisation",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "A54"
+            }
+          ]
+        },
+        {
+          "id": "a-55",
+          "label": "COFFRE 6 · COFFRE DU BAS",
+          "items": [
+            {
+              "designation": "Division mixte ø 65 - ø 40",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "A56"
+            },
+            {
+              "designation": "Tuyau ø 70 - 20 m pré-connecté",
+              "quantity": 2,
+              "quantityText": "2",
+              "sourceCell": "A57"
+            }
+          ]
+        },
+        {
+          "id": "f-53",
+          "label": "ARRIERE FPT",
+          "items": [
+            {
+              "designation": "Dévidoir 4 X 40 m - ø 70",
+              "quantity": 2,
+              "quantityText": "2",
+              "sourceCell": "F55"
+            },
+            {
+              "designation": "Division mixte ø 65 - ø 40",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "F56"
+            }
+          ]
+        },
+        {
+          "id": "f-57",
+          "label": "ARRIERE FPT · COFFRE POMPE",
+          "items": [
+            {
+              "designation": "Tricoise ø 100",
+              "quantity": 2,
+              "quantityText": "2",
+              "sourceCell": "F58"
+            },
+            {
+              "designation": "Dévidoir 42 m - ø 23 avec LDV",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "F59"
+            },
+            {
+              "designation": "Manivelle de secours dévidoir",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "F60"
+            }
+          ]
+        },
+        {
+          "id": "k-51",
+          "label": "TOIT",
+          "items": [
+            {
+              "designation": "Echelle à coulisse deux plans",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "K53"
+            }
+          ]
+        },
+        {
+          "id": "k-54",
+          "label": "TOIT · COFFRE DE TOIT",
+          "items": [
+            {
+              "designation": "Tuyau d'aspiration ø 110 - 2 m",
+              "quantity": 3,
+              "quantityText": "3",
+              "sourceCell": "K55"
+            },
+            {
+              "designation": "Canne d'aspiration extérieur émulseur",
+              "quantity": 1,
+              "quantityText": "1",
+              "sourceCell": "K56"
+            }
+          ]
+        }
+      ],
+      "photos": [
+        {
+          "src": "/inventaire/photos/fpt-18-profil-1.jpeg",
+          "caption": "Photo de profil intégrée à la fiche fournie"
+        },
+        {
+          "src": "/inventaire/photos/fpt-18-profil-2.jpeg",
+          "caption": "Photo de l’autre profil intégrée à la fiche fournie"
+        }
+      ]
+    }
+  ]
+}
