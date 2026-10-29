@@ -21,5 +21,17 @@ test('inventaires : consultation anonyme, écritures admin, historique atomique 
  assert.equal((await db.query('select revision from inventory_vehicles where id=$1',[id])).rows[0].revision,2);
  await assert.rejects(db.query("update inventory_vehicles set center='DIRECT' where id=$1",[id]));await assert.rejects(db.query('delete from inventory_events'));
  await db.exec("select set_config('test.admin','false',false)");assert.equal((await db.query('select * from inventory_events')).rows.length,0);
+ await db.exec('reset role');
+ await db.exec("update inventory_vehicles set center='CENTRE MODIFIE' where id='fpt-13';update inventory_vehicles set revision=2 where id='fpt-14'");
+ const batch=await readFile(new URL('../supabase/migrations/024_import_vehicle_sheets.sql',import.meta.url),'utf8');
+ await db.exec(batch);
+ assert.equal((await db.query("select center from inventory_vehicles where id='fpt-13'")).rows[0].center,'CENTRE MODIFIE');
+ assert.equal((await db.query("select sheet from inventory_vehicles where id='fpt-14'")).rows[0].sheet,null);
+ assert.equal((await db.query('select count(*)::int n from inventory_vehicles where sheet is not null')).rows[0].n,16);
+ const imported=(await db.query("select sheet from inventory_vehicles where id='ccrmsr-23'")).rows[0].sheet;
+ assert.equal(imported.sections.reduce((n,s)=>n+s.items.length,0),80);assert.equal(imported.photos.length,2);
+ const count=(await db.query('select count(*)::int n from inventory_events')).rows[0].n;
+ await db.exec(batch);assert.equal((await db.query('select count(*)::int n from inventory_events')).rows[0].n,count);
+ assert.equal((await db.query("select count(*)::int n from inventory_vehicles where registration='DC-315-JR'")).rows[0].n,0);
  }finally{await db.close();}
 });

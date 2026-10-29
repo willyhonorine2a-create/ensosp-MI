@@ -56,3 +56,44 @@ rôle côté serveur, valide la fiche et écrit l'historique dans la même trans
 Une révision évite l'écrasement d'une modification concurrente : fermer puis
 recharger la page avant de reprendre la saisie. Ne pas appliquer ces migrations
 à une base de production dans le cadre de cette livraison.
+
+## Fiches du ZIP et choix du centre (migration 024)
+
+Le formulaire propose une liste déroulante des centres présents dans le parc,
+avec l'affectation actuelle sélectionnée, pour la création et le changement de
+centre. Aucun centre n'est saisi librement dans ce formulaire.
+
+Après les migrations 022 et 023, exécuter `024_import_vehicle_sheets.sql` dans le
+SQL Editor du **projet de test**. Le SQL fournit 17 fiches : CCRMSR 22/23,
+EPAS 4/5/6, FPT 09/10/11/13/14/15/16/17/18 et FPTL 19/20/21. Les photos sont
+celles intégrées à chaque classeur fourni, sans les logos ni plaques décoratives.
+Elles sont servies par la nouvelle version du site sur develop.
+
+L'import ne modifie ni l'immatriculation ni l'affectation. Il ne remplace que les
+fiches encore en révision 1, afin de préserver celles modifiées par un administrateur.
+Les lignes ignorées peuvent être repérées avec :
+
+```sql
+select name, center, revision, sheet is not null as fiche_disponible
+from public.inventory_vehicles order by name;
+```
+
+Chaque fiche effectivement importée reçoit une révision et un événement historique.
+Rejouer le script ne modifie pas à nouveau les fiches. Le fichier statique
+`data.json` demeure la source du parc initial ; la page consulte Supabase.
+
+FPT 7 n'est pas ajouté, à la demande du gestionnaire. `EPS 01.xlsx` indique lui
+aussi EPS 04 et la même immatriculation : la version `EPS 04.xlsx`, nommée EPAS 04
+à l'intérieur, est retenue. `VSR 4.xlsx` contient un paquet Excel chiffré : fournir
+une copie non chiffrée pour importer sa fiche. Le PDF d'armoire ne constitue pas
+une fiche d'engin et n'est pas importé.
+
+Le convertisseur reproductible (sources privées, non versionnées) s'exécute depuis
+la racine du dépôt avec Python 3 standard :
+
+```sh
+python3 -m scripts.import_vehicle_sheets private-imports/engins --output supabase/migrations/024_import_vehicle_sheets.sql
+```
+
+Il rejette les quantités non reconnues et les incohérences d'immatriculation,
+et conserve les notations de quantité et cellules sources sans exécuter de formules.
