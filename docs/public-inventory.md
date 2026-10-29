@@ -30,3 +30,29 @@ python scripts/prepare_public_inventory.py --fleet '/chemin/parc engins 2026_val
 ```
 
 Les tests vérifient les 46 engins, l'unique fiche réellement disponible, son rattachement, les filtres combinés, les quantités particulières et les métadonnées. Des essais navigateur couvrent les tailles 320 à 1440 px, les photos, les liens directs, le chargement en échec, l'impression et l'absence de requêtes vers Supabase.
+
+## Gestion Supabase (développement, sans mise en production)
+
+La consultation utilise désormais `inventory_vehicles` dans le projet de test de
+`src/config.js`. Appliquer **022_public_inventory.sql**, puis
+**023_seed_public_inventory.sql** après les migrations existantes 001 à 021.
+Le second script conserve les engins déjà présents et importe les 46 affectations
+et la seule fiche fournie. Aucun classeur supplémentaire n'est importé automatiquement.
+Les photos publiques existantes restent dans le site. En cas d'erreur réseau ou de
+migration absente, la page affiche une erreur, sans revenir au fichier statique.
+
+La connexion facultative de la page Inventaires utilise les comptes existants.
+Seuls les membres `stock_members` avec rôle `admin` peuvent créer ou modifier un
+engin. Chaque compartiment comporte un nom et une liste `quantité ; matériel`.
+Les quantités non modifiées conservent leur notation d'origine, notamment `1+1`.
+Retirer tous les compartiments retire la fiche de consultation de cet engin.
+Un motif est obligatoire pour chaque enregistrement, y compris un changement de
+centre. L'historique administratif conserve les valeurs avant/après, la date et
+l'auteur ; ses 50 dernières entrées sont affichées dans le formulaire de l'engin.
+Les identités et cet historique ne sont pas accessibles au public.
+
+Les écritures directes sont interdites par les droits et RLS. La RPC vérifie le
+rôle côté serveur, valide la fiche et écrit l'historique dans la même transaction.
+Une révision évite l'écrasement d'une modification concurrente : fermer puis
+recharger la page avant de reprendre la saisie. Ne pas appliquer ces migrations
+à une base de production dans le cadre de cette livraison.

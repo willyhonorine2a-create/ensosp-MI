@@ -1,7 +1,8 @@
+import {client,loadInventory,installInventoryAdmin} from './inventory-repository.js';
 import {filterVehicles,filterSections,inventoryTotals} from './public-inventory.js';
 const $=id=>document.getElementById(id);
 const el=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(className)node.className=className;return node;};
-let data=null,limit=12,selectedSheet=null;
+let data=null,limit=12,selectedSheet=null,isAdmin=false,editVehicle=()=>{};
 const hashFor=(center='',vehicle='')=>'#'+new URLSearchParams({...center?{centre:center}:{},...vehicle?{engin:vehicle}:{}}).toString();
 const sheetFor=vehicle=>data.sheets.find(sheet=>sheet.id===vehicle.sheetId);
 function renderFleet(){
@@ -14,10 +15,11 @@ function renderFleet(){
   const sheet=sheetFor(vehicle),card=el('article',undefined,'vehicle-card');
   const visual=el('div',undefined,'vehicle-visual');
   if(sheet?.photos.length){const image=el('img');image.src=sheet.photos[0].src;image.alt=`Photo de la fiche ${vehicle.name}`;image.loading='lazy';visual.append(image);}
-  else {visual.append(el('span',vehicle.name.match(/^[A-Z]+/)[0],'vehicle-type'));visual.setAttribute('aria-hidden','true');}
+  else {visual.append(el('span',vehicle.name.match(/^[A-Z]+/)?.[0] || vehicle.name,'vehicle-type'));visual.setAttribute('aria-hidden','true');}
   const content=el('div',undefined,'vehicle-content');content.append(el('span',vehicle.center || 'Affectation à confirmer','vehicle-center'),el('h3',vehicle.name),el('p',vehicle.registration,'registration'));
   if(sheet){const link=el('a','Consulter l’inventaire →','sheet-link');link.href=hashFor(vehicle.center,vehicle.id);content.append(link);}
   else content.append(el('span','Fiche à ajouter','sheet-pending'));
+  if(isAdmin){const edit=el('button','Modifier / changer de centre');edit.onclick=()=>editVehicle(vehicle);content.append(edit);}
   card.append(visual,content);$('vehicleCards').append(card);
  }
  $('noVehicles').hidden=visible.length>0;$('moreVehicles').hidden=visible.length<=limit;
@@ -64,7 +66,7 @@ function route(){
 async function load(){
  $('retryInventory').hidden=true;$('inventoryStatus').textContent='Chargement des inventaires…';
  try {
-  const response=await fetch('/inventaire/data.json');if(!response.ok)throw Error();data=await response.json();
+  data=await loadInventory();
   const centers=[...new Set(data.vehicles.map(v=>v.center).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
   $('fleetCount').textContent=data.vehicles.length;$('centerCount').textContent=centers.length;$('sheetCount').textContent=data.sheets.length;
   $('centerFilter').replaceChildren(new Option('Toutes les affectations',''),...centers.map(c=>new Option(c,c)));
@@ -82,4 +84,5 @@ $('vehicleSearch').oninput=()=>{limit=12;renderFleet();};$('onlySheets').onchang
 $('resetFleet').onclick=()=>{$('centerFilter').value='';$('vehicleSearch').value='';$('onlySheets').checked=false;limit=12;history.replaceState(null,'',hashFor());renderFleet();};
 $('moreVehicles').onclick=()=>{limit+=12;renderFleet();};$('equipmentSearch').oninput=renderEquipment;
 $('printSheet').onclick=()=>{$('equipmentSearch').value='';renderEquipment();window.print();};$('closePhoto').onclick=()=>$('photoViewer').close();$('photoViewer').addEventListener('close',()=>{$('fullPhoto').removeAttribute('src');});
+({editVehicle}=installInventoryAdmin({getData:()=>data,reload:load,onAdmin:value=>{isAdmin=value;if(data)renderFleet();}}));
 window.addEventListener('hashchange',route);$('retryInventory').onclick=load;await load();
