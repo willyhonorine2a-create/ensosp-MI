@@ -20,6 +20,7 @@ function renderFleet(){
   if(sheet){const link=el('a','Consulter l’inventaire →','sheet-link');link.href=hashFor(vehicle.center,vehicle.id);content.append(link);}
   else content.append(el('span','Fiche à ajouter','sheet-pending'));
   if(isAdmin){const edit=el('button','Modifier la fiche et l’affectation','secondary vehicle-edit');edit.onclick=()=>editVehicle(vehicle);content.append(edit);}
+  const report=el('a','Signaler un problème','public-inventory-link vehicle-report');report.href='/signalement/?engin='+encodeURIComponent(vehicle.id);content.append(report);
   card.append(visual,content);$('vehicleCards').append(card);
  }
  $('noVehicles').hidden=visible.length>0;$('moreVehicles').hidden=visible.length<=limit;
@@ -42,7 +43,7 @@ function openSheet(vehicle,sheet){
  selectedSheet=sheet;$('fleetView').hidden=true;$('sheetView').hidden=false;
  $('sheetTitle').textContent=vehicle.name;$('sheetCenter').textContent=`${vehicle.center || 'Affectation à confirmer'} · INVENTAIRE DE L’ENGIN`;
  $('sheetRegistration').textContent=vehicle.registration;$('sheetMetadata').textContent=`Document : ${sheet.source} · Mise à jour : ${sheet.updatedAt} · Version ${sheet.version}`;
- $('backToFleet').href=hashFor(vehicle.center);$('equipmentSearch').value='';
+ $('reportSheet').href='/signalement/?engin='+encodeURIComponent(vehicle.id);$('backToFleet').href=hashFor(vehicle.center);$('equipmentSearch').value='';
  const totals=inventoryTotals(sheet);$('sheetTotals').replaceChildren(...[[totals.sections,'compartiments'],[totals.lines,'lignes de matériel'],[totals.units,'unités dans la fiche']].map(([count,label])=>{const stat=el('div');stat.append(el('strong',String(count)),el('span',label));return stat;}));
  $('sheetPhotos').replaceChildren();
  for(const photo of sheet.photos){

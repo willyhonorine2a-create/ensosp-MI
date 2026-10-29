@@ -8,7 +8,15 @@ for(const file of readdirSync(new URL('dist/inventaire/photos/',import.meta.url)
  if(/^[a-z0-9-]+\.jpeg$/.test(file))routes['/inventaire/photos/'+file]='inventaire/photos/'+file;
 }
 routes['/src/theme.css']='src/theme.css';
-const types = {json:'application/json; charset=utf-8',jpeg:'image/jpeg',png:'image/png',svg:'image/svg+xml',webmanifest:'application/manifest+json',html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8'};
+for(const folder of ['signalement','signalements']) {
+ routes['/'+folder] = folder+'/index.html';routes['/'+folder+'/'] = folder+'/index.html';
+ routes['/'+folder+'/app.js'] = folder+'/app.js';
+}
+for(const file of ['config.json','illustrations.json','style.css'])routes['/signalement/'+file]='signalement/'+file;
+for(const file of readdirSync(new URL('dist/signalement/materiels/',import.meta.url))) {
+ if(/^[a-z0-9-]+\.(jpg|webp)$/.test(file))routes['/signalement/materiels/'+file]='signalement/materiels/'+file;
+}
+const types = {jpg:'image/jpeg',webp:'image/webp',json:'application/json; charset=utf-8',jpeg:'image/jpeg',png:'image/png',svg:'image/svg+xml',webmanifest:'application/manifest+json',html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8'};
 const port=Number(process.env.PORT || 3000);
 http.createServer(async(req,res)=>{
   const file=routes[new URL(req.url,'http://localhost').pathname];

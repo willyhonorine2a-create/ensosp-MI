@@ -156,3 +156,6 @@ dialog legend {font-size:12px;color:var(--muted);font-weight:650;padding:0 7px;}
  .compartment h3 {background:#eee;color:#111;}.sheet-heading {padding:0;border:0;}
  .sheet-totals strong {font-size:20px;}.sheet-totals > div {padding:8px 12px;}
 }
+.vehicle-content .vehicle-report {margin:0;text-align:center;font-size:12px;background:#f7f9fb;border-style:dashed;min-height:44px;display:flex;align-items:center;justify-content:center}.admin-toolbar .public-inventory-link{margin:0;display:flex;align-items:center;font-size:12px}.sheet-heading{flex-wrap:wrap}.sheet-heading>div{flex:1;min-width:180px}@media print{#reportSheet{display:none!important}}
+
+.intro-actions > .public-inventory-link {margin:0;display:inline-flex;align-items:center;justify-content:center;min-height:44px;}

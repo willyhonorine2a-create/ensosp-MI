@@ -96,3 +96,8 @@ Emplacements physiques : [MI / CS, installation et utilisation](docs/physical-lo
 Comptes et rôles : [installation et gestion des accès](docs/accounts-access.md).
 
 Inventaires des engins : [consultation publique et import des fiches](docs/public-inventory.md).
+
+Remontées terrain : [formulaire public, suivi administrateur, mails et QR](docs/reporting.md).
+Les migrations 025/026 et les fonctions serveur doivent être installées dans le
+projet de test avant activation ; le planificateur mail est décrit dans la migration
+optionnelle 027. Aucune notification n’est envoyée tant que l’activation est incomplète.

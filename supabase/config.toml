@@ -1,0 +1,5 @@
+# Déployer uniquement dans le projet de TEST après configuration des secrets.
+[functions.inventory-report]
+verify_jwt = false
+[functions.report-notifications]
+verify_jwt = false

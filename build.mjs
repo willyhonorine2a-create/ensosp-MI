@@ -1,4 +1,4 @@
-import {mkdir,copyFile,rm,cp} from 'node:fs/promises';
+import {mkdir,copyFile,rm,cp,readFile,writeFile} from 'node:fs/promises';
 import {build} from 'esbuild';
 await rm('dist',{recursive:true,force:true});
 await mkdir('dist/src',{recursive:true});
@@ -8,4 +8,10 @@ await copyFile('src/style.css','dist/src/style.css');
 await copyFile('src/theme.css','dist/src/theme.css');
 await build({entryPoints:['src/app.js'],bundle:true,format:'esm',target:'es2022',outfile:'dist/src/app.js',minify:true});
 await build({entryPoints:['src/inventory-app.js'],bundle:true,format:'esm',target:'es2022',outfile:'dist/inventaire/app.js',minify:true});
+await build({entryPoints:['src/report-app.js'],bundle:true,format:'esm',target:'es2022',outfile:'dist/signalement/app.js',minify:true});
+await build({entryPoints:['src/reports-admin.js'],bundle:true,format:'esm',target:'es2022',outfile:'dist/signalements/app.js',minify:true});
+const reportConfig=JSON.parse(await readFile('public/signalement/config.json','utf8'));
+if(process.env.PUBLIC_TURNSTILE_SITE_KEY)reportConfig.turnstileSiteKey=process.env.PUBLIC_TURNSTILE_SITE_KEY;
+if(process.env.PUBLIC_REPORT_FORM_URL)reportConfig.publicFormUrl=process.env.PUBLIC_REPORT_FORM_URL;
+await writeFile('dist/signalement/config.json',JSON.stringify(reportConfig));
 console.log('Build terminé : dist/');
