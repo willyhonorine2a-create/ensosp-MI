@@ -13,7 +13,7 @@ Les migrations 001 à 017 doivent déjà être installées. Exécuter les fichie
 
 1. `018_access_requests.sql` crée les rôles, les demandes, le déclencheur d'inscription et l'audit des décisions.
 2. Amorcer le premier administrateur depuis le SQL Editor avec le propriétaire de la base. Le fichier personnalisé fourni à Willy inclut cette opération dans l'étape 1, en utilisant son UUID Auth existant. Ne pas promouvoir tous les membres ni choisir automatiquement le premier inscrit.
-3. `019_admin_writes.sql` impose le rôle administrateur sur les neuf RPC d'écriture existantes, leurs tables et les téléversements de photos. Leurs signatures et leurs transactions sont conservées. L'injection du contrôle vérifie la présence du corps attendu et échoue intégralement si une fonction ne correspond plus ; elle ne s'applique qu'aux neuf signatures explicitement listées.
+3. `019_admin_writes.sql` impose le rôle administrateur sur les neuf RPC d'écriture existantes, leurs tables et les téléversements de photos. Leurs signatures et leurs transactions sont conservées. Le contrôle est ajouté dans un bloc extérieur, en conservant intégralement le corps de chaque fonction. Il accepte la casse, les espacements et les retours à la ligne des scripts copiés dans le SQL Editor. Il ne s'applique qu'aux neuf signatures explicitement listées.
 4. `020_list_accounts.sql` ajoute la liste paginée réservée aux administrateurs.
 5. `021_decide_accounts.sql` ajoute les décisions et recharge le cache API.
 
@@ -61,3 +61,5 @@ Le retrait supprime l'autorisation dans `stock_members`, pas le compte Auth ni l
 ## Validation
 
 Les tests SQL vérifient l'inscription sans privilège, la lecture seule, les neuf RPC d'écriture, l'accès anonyme et en attente/refusé, l'interdiction de s'auto-promouvoir, les décisions rejouées et obsolètes, les photos et la conservation des rôles après réinstallation. Les essais navigateur couvrent inscription, lecture seule des sous-fiches, approbation/refus/changement de rôle, retrait et effacement de session privée, et la page publique sans appel Supabase. Ils utilisent des données de test ; aucun compte réel n'est créé par ces essais.
+
+Si l’ancienne étape 2 indique « Fonction à vérifier », exécuter la pièce jointe corrigée `comptes-acces-etape-2-corrige.sql`, puis poursuivre avec les étapes 3 et 4. L’étape 1 n’a pas à être rejouée.

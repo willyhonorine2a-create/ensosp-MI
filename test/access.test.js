@@ -13,6 +13,20 @@ test('comptes : inscription sans privilège, validation admin, lecture seule eff
  grant usage on schema storage to authenticated;grant select,insert on storage.objects to authenticated;`);
  const files=['001_stock','002_preview','005_simple_categories','007_inventory_actions','008_manage_stock','009_devices_schema','010_devices_counts','011_save_reference','012_convert_reference','013_manage_device','014_physical_locations','015_location_counts','016_device_locations','017_located_stock'];
  for(const name of files)await db.exec(await readFile(new URL(`../supabase/migrations/${name}.sql`,import.meta.url),'utf8'));
+ // Variantes présentes dans les scripts copiés dans le SQL Editor :
+ // casse, CRLF, indentation, BEGIN sur la même ligne et mot BEGIN en commentaire.
+ for(const [signature,style] of [
+  ['public.record_stock_movement(uuid,text,integer,text)','uppercase'],
+  ['public.record_stock_movement_once(uuid,text,integer,text,uuid)','crlf'],
+  ['public.save_stock_asset(uuid,jsonb,integer)','inline']
+ ]){
+  const {definition,body}=(await db.query('select pg_get_functiondef(oid) definition,prosrc body from pg_proc where oid=$1::regprocedure',[signature])).rows[0];
+  let changed=body.replace(/\bbegin\b/gi,'BEGIN');
+  if(style==='crlf')changed=changed.replace(/\n/g,'\r\n').replace(/BEGIN/g,'  BeGiN');
+  if(style==='inline')changed=changed.replace(/BEGIN\s*/,'BEGIN ');
+  changed='-- BEGIN : commentaire conservé sans interprétation\n'+changed;
+  await db.exec(definition.replace(body,changed));
+ }
  const id=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
  // Un membre existant n'est jamais promu automatiquement lors de la migration.
  await db.query('insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())',[id(1),'admin@example.test']);await db.query('insert into stock_members(user_id) values($1)',[id(1)]);
@@ -28,6 +42,8 @@ test('comptes : inscription sans privilège, validation admin, lecture seule eff
  let request=100;const decide=(n,status,role,expected='pending',expectedRole=null,req=id(request++))=>db.query('select decide_stock_account($1,$2,$3,$4,$5,$6)',[id(n),status,role,expected,expectedRole,req]);
  await as(1);
  const asset=(await db.query('select save_stock_reference(null,$1,5,$2) id',[{designation:'Tuyaux',category:'TUY',minimum_quantity:0},'quantity'])).rows[0].id;
+ await db.query('select record_stock_movement($1,$2,1,$3)',[asset,'entry','Vérification après installation']);
+ await db.query('select record_stock_movement($1,$2,1,$3)',[asset,'exit','Retour au stock initial']);
  assert.equal((await db.query("select * from list_stock_accounts('pending',0,50)")).rows.length,3);
  await assert.rejects(decide(4,'approved','reader'));
  const approveRequest=id(request++);await decide(2,'approved','reader','pending',null,approveRequest);await decide(2,'approved','reader','pending',null,approveRequest);

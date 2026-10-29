@@ -2,7 +2,7 @@ begin;
 -- Renforce toutes les anciennes RPC avant leur contrôle de rejeu.
 -- Les signatures et les transactions existantes sont conservées.
 do $$
-declare signature text; definition text;
+declare signature text; definition text; body text; guard text:=E'BEGIN\n PERFORM public.require_stock_admin();\n';
 begin
  foreach signature in array array[
  'public.record_stock_movement(uuid,text,integer,text)',
@@ -15,10 +15,13 @@ begin
  'public.manage_stock_device(uuid,uuid,text,jsonb,timestamptz,uuid)',
  'public.manage_located_stock(uuid,text,text,text,integer,jsonb,text,uuid)'
  ] loop
-  definition:=pg_get_functiondef(signature::regprocedure);
-  if strpos(definition,'perform public.require_stock_admin();')=0 then
-   if strpos(definition,E'\nbegin\n')=0 then raise exception 'Fonction à vérifier : %',signature; end if;
-   execute regexp_replace(definition,E'\nbegin\n',E'\nbegin\n perform public.require_stock_admin();\n');
+  select pg_get_functiondef(p.oid),p.prosrc into definition,body
+  from pg_catalog.pg_proc p where p.oid=signature::regprocedure;
+  -- Ajoute un bloc extérieur : le corps d'origine reste intégralement conservé.
+  -- Accepte BEGIN/begin, indentation, CRLF, commentaires et corps sur une ligne.
+  if left(body,length(guard))<>guard then
+   if body is null or body='' or strpos(definition,body)=0 then raise exception 'Corps introuvable : %',signature; end if;
+   execute replace(definition,body,guard||body||E'\nEND;\n');
   end if;
  end loop;
 end;
