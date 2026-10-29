@@ -385,3 +385,12 @@ button.secondary { background:#f0f3f8; color:#304e70; }
  .stats .kpi-icon .icon { width:19px; height:19px; }
 }
 .stats .kpi-heading .kpi-icon { color:#ed1c24; }
+
+.location-overview { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-bottom:24px; }
+.location-overview article { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:18px 22px; border:1px solid #dde5ef; border-radius:14px; background:#fff; }
+.location-overview span { color:#405d7d; font-size:12px; }.location-overview strong { color:#1d284e; font-size:26px; }
+.location-current { padding:12px; border-radius:10px; background:#f0f3f8; color:#304e70; font-weight:650; }
+.location-caption { color:#405d7d!important; line-height:1.5; }
+.location-history { margin-top:22px; }.location-history h2 { font-size:17px; }.location-history p,.location-history li { color:#60748b; font-size:12px; }
+#deviceLocationFilterLabel { max-width:360px; margin:16px 0; }
+@media(max-width:740px) { .location-overview { grid-template-columns:1fr; gap:10px; }.location-overview article { padding:14px 18px; } }

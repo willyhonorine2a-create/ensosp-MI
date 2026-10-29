@@ -1,4 +1,4 @@
-import {moveStock} from './stock.js';
+import {physicalLocations,locationCounts,locationSummary} from './locations.js';
 import {fields,identificationFields,validateAsset} from './patrimoine.js';
 const $ = id => document.getElementById(id);
 import {createClient} from '@supabase/supabase-js';
@@ -11,7 +11,7 @@ const client=createClient(supabaseUrl,supabasePublishableKey,{
  auth:{persistSession:true,storage:sessionStorage,detectSessionInUrl:false}
 });
 const repository=createRepository(client);
-let session=null, revision=0, pendingMovement=null, inventoryAction=null;
+let session=null, revision=0, inventoryAction=null;
 for (const [name,label,code,max,type] of identificationFields) {
   const wrapper = document.createElement('label'); wrapper.textContent = label;
   if(['serial','purchasedAt','warrantyUntil'].includes(name))wrapper.classList.add('individual-metadata');
@@ -25,7 +25,7 @@ let state = {items:[],history:[]};
 function clearInventory() {
  revision++;document.body.classList.remove('dashboard-ready'); state={items:[],history:[]}; render();
  $('workspace').hidden=true; $('loginPanel').hidden=false;
- $('itemDialog').close(); $('moveDialog').close(); $('categoryDialog').close(); $('stockActionDialog').close(); $('trackingDialog').close();$('deviceDialog').close();
+ $('itemDialog').close(); $('categoryDialog').close(); $('stockActionDialog').close(); $('trackingDialog').close();$('deviceDialog').close();$('locationDialog').close();
 }
 async function refresh() {
  if(!session) return;
@@ -111,7 +111,8 @@ function renderDashboard(data,filters){
  const chips=[];
  if(filters.search.trim())chips.push(`Recherche : ${filters.search.trim()}`);
  if(filters.category)chips.push(categoryLabel(filters.category));
- if(filters.service)chips.push(`Service : ${filters.service}`);
+ if(filters.location)chips.push(physicalLocations[filters.location]);
+ for(const [code,id] of [['MI','unitsMi'],['CS','unitsCs'],['UNSET','unitsUnlocated']])$(id).textContent=number.format(data.locationTotals[code]);
  if(filters.mode)chips.push(filters.mode==='individual'?'Suivi individuel':'Gestion en quantité');
  if(filters.onlyAlerts)chips.push('Alertes uniquement');
  $('activeFilters').replaceChildren(...chips.map(label=>element('span',label,'filter-chip')));
@@ -139,21 +140,20 @@ function renderDashboard(data,filters){
  $('watchEmpty').hidden=Boolean(watch.some(([count])=>count));
  $('defaultsNote').hidden=data.defaultQuantities===0;
 }
-$('resetFilters').onclick=()=>{ $('search').value='';for(const id of ['categoryFilter','serviceFilter','modeFilter'])$(id).value='';$('onlyAlerts').checked=false;render(); };
+$('resetFilters').onclick=()=>{ $('search').value='';for(const id of ['categoryFilter','locationFilter','modeFilter'])$(id).value='';$('onlyAlerts').checked=false;render(); };
 function render() {
   fillCategories($('categoryFilter'),$('categoryFilter').value);
   $('categoryRows').replaceChildren();
   (state.categories || []).forEach(c=>{const tr=document.createElement('tr');tr.append(element('td',c.code),element('td',c.label));$('categoryRows').append(tr);});
-  const services=$('serviceFilter'), previousService=services.value;
-  services.replaceChildren(new Option('Tous',''));
-  [...new Set(state.items.map(i=>i.service).filter(Boolean))].sort().forEach(v=>services.add(new Option(v,v)));
-  services.value=[...services.options].some(o=>o.value===previousService)?previousService:'';
-  const filters={search:$('search').value,category:$('categoryFilter').value,service:$('serviceFilter').value,mode:$('modeFilter').value,onlyAlerts:$('onlyAlerts').checked};
+  const filters={search:$('search').value,category:$('categoryFilter').value,location:$('locationFilter').value,mode:$('modeFilter').value,onlyAlerts:$('onlyAlerts').checked};
   const dashboard=buildDashboard(state.items,state.categories,state.deviceFacts,filters);
   const visible=dashboard.references;
   renderDashboard(dashboard,filters);
   $('inventory').replaceChildren();
+  const fullReferences=groupReferences(state.items);
   visible.forEach(i => {
+    const fullReference=fullReferences.find(r=>r.members.some(m=>m.id===i.id));
+    const actionItem=state.items.find(row=>row.id===i.id);
     const tr = document.createElement('tr'); tr.setAttribute('role','row');
     const name=element('td',i.name);
     const photo=document.createElement('td');
@@ -161,21 +161,22 @@ function render() {
      const button=element('button','','photo-button');button.setAttribute('aria-label',`Voir la photo de ${i.name}`);
      const img=document.createElement('img');img.src=i.photoUrl;img.alt=`Photo : ${i.name}`;img.loading='lazy';img.className='stock-photo';
      img.onerror=()=>{button.replaceChildren(element('span','Photo indisponible'));};
-     button.append(img);button.onclick=()=>i.members.length>1?openTracking(i):openAsset(i);photo.append(button);
+     button.append(img);button.onclick=()=>fullReference.members.length>1?openTracking(fullReference):openAsset(actionItem);photo.append(button);
     } else {const placeholder=element('span','▥','photo-placeholder');placeholder.setAttribute('role','img');placeholder.setAttribute('aria-label',i.photoUnavailable?'Photo indisponible':'Aucune photo');photo.append(placeholder);}
     const stock=document.createElement('td'), stockButton=element('button',String(i.stock),'stock-link');
-    stockButton.setAttribute('aria-label',`Voir le stock : ${i.name}`);stockButton.onclick=()=>openTracking(i);stock.append(stockButton);
+    stockButton.setAttribute('aria-label',`Voir le stock : ${i.name}`);stockButton.onclick=()=>openTracking(fullReference);stock.append(stockButton);
     stock.append(element('small',i.trackingMode==='individual'?`${i.availableStock} disponible(s)`:'Gestion en quantité'));
-    if(i.members.length>1)stock.append(element('small',`${i.members.length} lignes regroupées`));
+    stock.append(element('small',`Total : ${fullReference.stock} · ${locationSummary(fullReference)}`,'location-caption'));
+    if(fullReference.members.length>1)stock.append(element('small',`${fullReference.members.length} lignes regroupées`));
     const status=document.createElement('td');status.append(element('span',i.availableStock===0?(i.trackingMode==='individual'?'Indisponible':'Rupture'):i.availableStock<=i.minimum?'Stock faible':'Disponible',`pill ${i.availableStock<=i.minimum?'warning':''}`));
     const category=document.createElement('td');category.append(element('span',i.category || '—','category-tag'),element('small',state.categories?.find(c=>c.code===i.category)?.label || 'À classer'));
     tr.append(photo,name,element('td',i.reference || '—'),category,stock,status);
-    const action = document.createElement('td'); const button = element('button','Mouvement','secondary'); button.setAttribute('aria-label',`Mouvement : ${i.name}`);
-    button.onclick = () => { if(i.trackingMode==='individual' || i.members.length>1){void openTracking(i);return;} selected = i.id; pendingMovement={id:crypto.randomUUID(),signature:null}; $('moveForm').reset(); $('moveError').textContent=''; $('moveName').textContent=`${i.name} · Stock actuel : ${i.stock}`; $('moveDialog').showModal(); };
-    const edit=element('button','Fiche','secondary'); edit.setAttribute('aria-label',`Fiche : ${i.name}`); edit.onclick=()=>i.members.length>1?openTracking(i):openAsset(i);
-    const adjust=element('button','Corriger le stock','secondary');adjust.setAttribute('aria-label',`Corriger le stock : ${i.name}`);adjust.onclick=()=>openStockAction(i,'adjust');
-    const remove=element('button','Supprimer','danger-outline');remove.setAttribute('aria-label',`Supprimer : ${i.name}`);remove.onclick=()=>openStockAction(i,'archive');
-    action.className='row-actions';const actionButtons=document.createElement('div');actionButtons.className='action-buttons';if(i.trackingMode==='individual'){button.textContent='Appareils';actionButtons.append(edit,button,remove);}else if(i.members.length>1){edit.textContent='Voir les lignes';button.textContent='Suivi individuel';actionButtons.append(edit,button);}else actionButtons.append(edit,button,adjust,remove);action.append(actionButtons);tr.append(action);
+    const action = document.createElement('td'); const button = element('button','MI / CS','secondary'); button.setAttribute('aria-label',`Répartition MI / CS : ${i.name}`);
+    button.onclick = () => { if(i.trackingMode==='individual' || fullReference.members.length>1){void openTracking(fullReference);return;} openLocation(actionItem); };
+    const edit=element('button','Fiche','secondary'); edit.setAttribute('aria-label',`Fiche : ${i.name}`); edit.onclick=()=>fullReference.members.length>1?openTracking(fullReference):openAsset(actionItem);
+    const adjust=element('button','Corriger le stock','secondary');adjust.setAttribute('aria-label',`Corriger le stock : ${i.name}`);adjust.onclick=()=>openLocation(actionItem,'adjust');
+    const remove=element('button','Supprimer','danger-outline');remove.setAttribute('aria-label',`Supprimer : ${i.name}`);remove.onclick=()=>openStockAction(actionItem,'archive');
+    action.className='row-actions';const actionButtons=document.createElement('div');actionButtons.className='action-buttons';if(i.trackingMode==='individual'){button.textContent='Appareils';actionButtons.append(edit,button,remove);}else if(fullReference.members.length>1){edit.textContent='Voir les lignes';button.textContent='Suivi individuel';actionButtons.append(edit,button);}else actionButtons.append(edit,button,adjust,remove);action.append(actionButtons);tr.append(action);
     const columns=[['photo','Photo'],['name','Matériel'],['reference','Référence'],['category','Catégorie'],['stock','Stock'],['status','Disponibilité'],['actions','Actions']];
     [...tr.children].forEach((cell,index)=>{cell.classList.add(`cell-${columns[index][0]}`);cell.dataset.label=columns[index][1];cell.setAttribute('role','cell');});
     $('inventory').append(tr);
@@ -183,11 +184,17 @@ function render() {
   $('empty').hidden = visible.length > 0;
   $('history').replaceChildren(); $('noHistory').hidden = state.history.length > 0;
   state.history.slice(0,20).forEach(m => $('history').append(element('li',`${m.type === 'entry' ? '+' : '−'}${m.quantity} · ${m.name} — ${new Date(m.date).toLocaleString('fr-FR')}${m.reason ? ' · '+m.reason : ''}`)));
+  $('locationHistory').replaceChildren();$('noLocationHistory').hidden=Boolean(state.locationEvents?.length);
+  for(const e of state.locationEvents || []){
+   const [action,from,to,quantity]=e.payload;
+   const label={transfer:'Transfert',entry:'Entrée',exit:'Sortie',adjust:'Correction'}[action];
+   const path=action==='transfer'?`${physicalLocations[from]} → ${physicalLocations[to]}`:physicalLocations[action==='entry'?to:from];
+   $('locationHistory').append(element('li',`${label} · ${e.stock_assets?.designation || 'Matériel'} · ${quantity} · ${path} · ${e.reason} — ${new Date(e.created_at).toLocaleString('fr-FR')}`));
+  }
   $('stockEvents').replaceChildren();$('noStockEvents').hidden=Boolean(state.events?.length);
   (state.events || []).forEach(e=>$('stockEvents').append(element('li',`${e.action==='archive' ? 'Ligne supprimée' : 'Stock corrigé'} · ${e.stock_assets?.designation || 'Matériel'} · ${e.before_quantity} → ${e.after_quantity} · ${e.reason} — ${new Date(e.created_at).toLocaleString('fr-FR')}`)));
 
 }
-let selected;
 $('search').oninput = render; $('onlyAlerts').onchange = render;
 function openAsset(item) {
  editingId=item?.id || null; pendingPhoto=null;creationRequest={id:crypto.randomUUID(),signature:null}; $('itemForm').reset(); $('itemError').textContent='';
@@ -202,7 +209,7 @@ function openAsset(item) {
  $('itemDialog').showModal();
 }
 $('add').onclick = () => openAsset();
-for(const id of ['categoryFilter','serviceFilter','modeFilter']) $(id).onchange=render;
+for(const id of ['categoryFilter','locationFilter','modeFilter']) $(id).onchange=render;
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('dialog').close());
 $('itemForm').onsubmit = async event => {
   event.preventDefault(); const form=event.currentTarget; const submit=form.querySelector('[type=submit]'); if(submit.disabled || !session) return;
@@ -231,21 +238,6 @@ $('itemForm').onsubmit = async event => {
     $('itemDialog').close();
     await afterWrite(editingId ? 'Fiche mise à jour dans Supabase.' : 'Matériel ajouté dans Supabase.');
   } catch(e) { $('itemError').textContent=e.message; } finally { submit.disabled=false; }
-};
-$('moveForm').onsubmit = async event => {
- event.preventDefault(); const form=event.currentTarget; const submit=form.querySelector('[type=submit]');
- if(submit.disabled || !session) return;
- const data=new FormData(form),type=data.get('type'),quantity=Number(data.get('quantity')),reason=data.get('reason').trim();
- try {
-  moveStock(state.items,selected,type,quantity); // retour immédiat ; la base reste autoritaire
-  const signature=JSON.stringify([selected,type,quantity,reason]);
-  if(pendingMovement.signature && pendingMovement.signature !== signature) pendingMovement.id=crypto.randomUUID();
-  pendingMovement.signature=signature;
-  submit.disabled=true;
-  await repository.move(selected,type,quantity,reason,pendingMovement.id);
-  $('moveDialog').close();
-  await afterWrite('Mouvement enregistré dans Supabase.');
- } catch(e) { $('moveError').textContent=e.message; } finally { submit.disabled=false; }
 };
 function openStockAction(item,action) {
  inventoryAction={item,action,id:crypto.randomUUID(),signature:null};
@@ -286,36 +278,39 @@ function syncTrackingMode(){
  $('trackingModeHelp').textContent=individual?'Le stock correspond au nombre d’appareils. Leurs informations individuelles pourront être complétées plus tard.':'Le stock est une quantité : aucune fiche individuelle n’est nécessaire.';
 }
 $('trackingMode').onchange=syncTrackingMode;
-async function openTracking(reference){
+async function openTracking(reference,keepLocation=false){
  trackingReference=reference;const ticket=++trackingLoad;conversionRequest={id:crypto.randomUUID(),signature:null};
  $('trackingTitle').textContent=reference.name;
  $('trackingSummary').textContent=`${reference.stock} ${reference.trackingMode==='individual'?'appareils':'unités'} · ${categoryLabel(reference.category)}`;
+ $('deviceLocationFilterLabel').hidden=reference.trackingMode!=='individual';if(!keepLocation)$('deviceLocationFilter').value=$('locationFilter').value;
  $('trackingError').textContent='';$('devicesList').replaceChildren();$('quantityLines').replaceChildren();$('convertForm').reset();$('conversionError').textContent='';
  $('addDevice').hidden=true;$('convertForm').hidden=reference.trackingMode==='individual';
  if(!$('trackingDialog').open)$('trackingDialog').showModal();
  if(reference.trackingMode==='individual'){
   try {
-   const devices=await repository.devices(reference.id);
+   const allDevices=await repository.devices(reference.id);
+   const devices=allDevices.filter(d=>!$('deviceLocationFilter').value || (d.physical_location || 'UNSET')===$('deviceLocationFilter').value);
    if(ticket!==trackingLoad || !session)return;
    $('addDevice').hidden=false;
-   if(!devices.length)$('devicesList').append(element('p','Aucun appareil. Vous pouvez en ajouter sans renseigner son numéro de série.'));
+   if(!devices.length)$('devicesList').append(element('p','Aucun appareil dans cet emplacement. Vous pouvez modifier le filtre ou ajouter un appareil sans numéro de série.'));
    devices.forEach(device=>{
     const card=element('article','','device-card');card.append(element('h3',deviceCode(device)));
     const dl=document.createElement('dl');
-    for(const [label,value] of [['Numéro de série',device.serial_number || 'Non renseigné'],['Date d’achat',dateLabel(device.purchased_at)],['Fin de garantie',dateLabel(device.warranty_until)],['Disponibilité',deviceStatus[device.status]]])dl.append(element('dt',label),element('dd',value));
+    for(const [label,value] of [['Numéro de série',device.serial_number || 'Non renseigné'],['Date d’achat',dateLabel(device.purchased_at)],['Fin de garantie',dateLabel(device.warranty_until)],['Disponibilité',deviceStatus[device.status]],['Emplacement physique',physicalLocations[device.physical_location || 'UNSET']]])dl.append(element('dt',label),element('dd',value));
     const edit=element('button','Compléter / modifier','secondary');edit.onclick=()=>openDevice(device);card.append(dl,edit);$('devicesList').append(card);
    });
   } catch(e){if(ticket===trackingLoad)$('trackingError').textContent=e.message;}
  } else {
   $('trackingSummary').textContent+=' · Gestion en quantité, sans fiches d’appareils.';
   for(const item of reference.members || [reference]){
-   const row=element('article','','quantity-line');row.append(element('p',`${item.name} · ${item.stock} unité(s)`));
+   const row=element('article','','quantity-line');row.append(element('p',`${item.name} · ${item.stock} unité(s)`),element('p',locationSummary(item),'location-current'));
    if(item.serial || item.purchasedAt || item.warrantyUntil)row.append(element('small',`Série : ${item.serial || '—'} · Achat : ${dateLabel(item.purchasedAt)} · Garantie : ${dateLabel(item.warrantyUntil)}`));
    const controls=element('div','','actions');
    const edit=element('button','Fiche','secondary');edit.onclick=()=>{ $('trackingDialog').close();openAsset(item); };
-   const adjust=element('button','Corriger cette quantité','secondary');adjust.onclick=()=>{ $('trackingDialog').close();openStockAction(item,'adjust'); };
+   const adjust=element('button','Corriger cette quantité','secondary');adjust.onclick=()=>{ $('trackingDialog').close();openLocation(item,'adjust'); };
    const archive=element('button','Supprimer cette ligne','danger-outline');archive.onclick=()=>{ $('trackingDialog').close();openStockAction(item,'archive'); };
-   controls.append(edit,adjust,archive);row.append(controls);$('quantityLines').append(row);
+   const locate=element('button','Répartir / transférer MI / CS','secondary');locate.onclick=()=>{ $('trackingDialog').close();openLocation(item); };
+   controls.append(edit,locate,adjust,archive);row.append(controls);$('quantityLines').append(row);
   }
   $('convertForm').elements.count.value=reference.stock<=500?reference.stock:'';
  }
@@ -337,8 +332,10 @@ function openDevice(device=null){
  $('deviceTitle').textContent=device?deviceCode(device):'Ajouter un appareil';
  $('retireDevice').hidden=!device;
  for(const key of ['serial_number','purchased_at','warranty_until','notes'])$('deviceForm').elements[key].value=device?.[key] || '';
+ $('deviceForm').elements.physical_location.value=device?.physical_location || $('deviceLocationFilter').value || 'UNSET';
  $('deviceForm').elements.status.value=device?.status || 'available';$('deviceDialog').showModal();
 }
+$('deviceLocationFilter').onchange=()=>openTracking(trackingReference,true);
 $('addDevice').onclick=()=>openDevice();
 async function saveDevice(action){
  if($('saveDevice').disabled || !session)return;
@@ -350,7 +347,7 @@ async function saveDevice(action){
   await repository.saveDevice(assetId,editingDevice,action,data,deviceRequest.id);
   $('deviceDialog').close();await afterWrite(action==='retire'?'Appareil retiré du stock, historique conservé.':'Appareil enregistré. Le stock est recalculé.');
   const reference=groupReferences(state.items).find(i=>i.id===assetId);
-  if(reference)await openTracking(reference);else $('trackingDialog').close();
+  if(reference)await openTracking(reference,true);else $('trackingDialog').close();
  } catch(e){$('deviceError').textContent=e.code==='23505'?'Ce numéro de série est déjà utilisé pour cette référence.':e.message;}finally{$('saveDevice').disabled=false;$('retireDevice').disabled=false;}
 }
 $('deviceForm').onsubmit=event=>{event.preventDefault();void saveDevice(editingDevice?'save':'create');};
@@ -366,6 +363,33 @@ $('categoryForm').onsubmit=async event=>{
   if(state.categories.some(c=>c.code===code)) throw Error('Ce code de catégorie existe déjà.');
   submit.disabled=true; await repository.createCategory(code,label); $('categoryDialog').close();await afterWrite('Catégorie créée. Elle est disponible pour les nouveaux matériels.');
  } catch(e) { $('categoryError').textContent=e.message; } finally {submit.disabled=false;}
+};
+let locationAction=null;
+function syncLocationAction(){
+ const form=$('locationForm'),action=form.elements.action.value;
+ $('locationFromLabel').hidden=action==='entry';$('locationToLabel').hidden=action==='exit' || action==='adjust';
+ $('locationFromLabel').firstChild.textContent=action==='transfer'?'Origine':'Emplacement concerné';
+ $('locationQuantityLabel').textContent=action==='adjust'?'Quantité réelle à cet emplacement':action==='transfer'?'Quantité à transférer':'Quantité';
+ form.elements.quantity.min=action==='adjust'?'0':'1';
+ if(action==='adjust' && locationAction)form.elements.quantity.value=locationCounts(locationAction.item)[form.elements.from.value];
+}
+function openLocation(item,action='transfer'){
+ locationAction={item,id:crypto.randomUUID(),signature:null};$('locationForm').reset();$('locationError').textContent='';
+ $('locationName').textContent=`${item.name} · Stock total : ${item.stock}`;$('locationCurrent').textContent=locationSummary(item);
+ const form=$('locationForm');form.elements.action.value=action;
+ form.elements.from.value=$('locationFilter').value || (locationCounts(item).UNSET?'UNSET':'MI');
+ form.elements.to.value=form.elements.from.value==='MI'?'CS':'MI';syncLocationAction();$('locationDialog').showModal();
+}
+$('locationForm').elements.action.onchange=syncLocationAction;$('locationForm').elements.from.onchange=syncLocationAction;
+$('locationForm').onsubmit=async event=>{
+ event.preventDefault();const form=event.currentTarget,submit=form.querySelector('[type=submit]');if(submit.disabled || !session || !locationAction)return;
+ const data=Object.fromEntries(new FormData(form)),quantity=Number(data.quantity);
+ try {
+  if(!Number.isSafeInteger(quantity) || quantity<0 || quantity>1000000 || (data.action!=='adjust' && quantity===0))throw Error('Saisissez une quantité entière valide.');
+  const signature=JSON.stringify(data);if(locationAction.signature && locationAction.signature!==signature)locationAction.id=crypto.randomUUID();locationAction.signature=signature;submit.disabled=true;
+  await repository.locate(locationAction.item,data.action,data.from,data.to,quantity,data.reason.trim(),locationAction.id);
+  $('locationDialog').close();await afterWrite(data.action==='transfer'?'Répartition mise à jour. Le stock total est conservé.':'Stock de l’emplacement mis à jour et historique enregistré.');
+ }catch(e){$('locationError').textContent=e.message;}finally{submit.disabled=false;}
 };
 $('loginForm').onsubmit=async event=>{
  event.preventDefault(); const form=event.currentTarget,submit=form.querySelector('[type=submit]');

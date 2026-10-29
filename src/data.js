@@ -7,7 +7,7 @@ export const mapping = {
  registeredAt:'registered_at',purchasedAt:'purchased_at',assignedAt:'assigned_at',warrantyUntil:'warranty_until',notes:'notes'
 };
 export function fromRow(row) {
- const item={id:row.id,stock:row.quantity,minimum:row.minimum_quantity,quantityDefaulted:row.quantity_defaulted,trackingMode:row.tracking_mode || 'quantity',availableStock:Number(row.available_devices ?? row.quantity)};
+ const item={id:row.id,stock:row.quantity,minimum:row.minimum_quantity,quantityDefaulted:row.quantity_defaulted,quantityMi:Number(row.quantity_mi || 0),quantityCs:Number(row.quantity_cs || 0),trackingMode:row.tracking_mode || 'quantity',availableStock:Number(row.available_devices ?? row.quantity)};
  for(const [key,column] of Object.entries(mapping)) item[key]=row[column] ?? '';
  return item;
 }
@@ -28,7 +28,7 @@ export function createRepository(client) {
    const categories=catalog.data;
    const items=[];
    for(let start=0;;start+=500) {
-    const page=await client.from('stock_reference_inventory').select('*').is('archived_at',null).order('id').range(start,start+499);
+    const page=await client.from('stock_assets').select('*').is('archived_at',null).order('id').range(start,start+499);
     if(page.error) {
      if(['42P01','PGRST205'].includes(page.error.code))throw Error('Le suivi des appareils n’est pas encore installé. Exécutez les cinq scripts Supabase puis actualisez.');
      throw page.error;
@@ -38,10 +38,13 @@ export function createRepository(client) {
    }
    const deviceFacts=[];
    for(let start=0;;start+=500){
-    const facts=await client.from('stock_devices').select('id,asset_id,status,warranty_until').is('retired_at',null).order('id').range(start,start+499);
-    if(facts.error)throw Error('Impossible de charger les appareils pour calculer les indicateurs. Réessayez.');
+    const facts=await client.from('stock_devices').select('id,asset_id,status,warranty_until,physical_location').is('retired_at',null).order('id').range(start,start+499);
+    if(facts.error)throw Error('Emplacements indisponibles. Exécutez les scripts Supabase de localisation MI / CS puis actualisez.');
     deviceFacts.push(...facts.data);if(facts.data.length<500)break;
    }
+   for(const item of items)if(item.trackingMode==='individual')item.availableStock=deviceFacts.filter(d=>d.asset_id===item.id && d.status==='available').length;
+   const locationEvents=await client.from('stock_location_events').select('id,action,reason,payload,before_data,after_data,created_at,stock_assets(designation)').order('created_at',{ascending:false}).limit(20);
+   if(locationEvents.error)throw Error('Exécutez les scripts Supabase de localisation MI / CS puis actualisez.');
    const paths=[...new Set(items.map(i=>i.photoPath).filter(Boolean))];
    if(paths.length) {
     const {data,error}=await client.storage.from('stock-photos').createSignedUrls(paths,3600);
@@ -53,7 +56,11 @@ export function createRepository(client) {
    const names=new Map(items.map(i=>[i.id,i.name]));
    const events=await client.from('stock_asset_events').select('id,action,before_quantity,after_quantity,reason,created_at,stock_assets(designation)').order('created_at',{ascending:false}).limit(20);
    if(events.error) throw Error('Actions de stock indisponibles. Appliquez les deux scripts de gestion du stock puis actualisez.');
-   return {deviceFacts,events:events.data,categories,items,history:result.data.map(m=>({name:m.stock_assets?.designation || names.get(m.asset_id)||'Matériel',type:m.movement_type,quantity:m.quantity,date:m.created_at,reason:m.reason}))};
+   return {locationEvents:locationEvents.data,deviceFacts,events:events.data,categories,items,history:result.data.map(m=>({name:m.stock_assets?.designation || names.get(m.asset_id)||'Matériel',type:m.movement_type,quantity:m.quantity,date:m.created_at,reason:m.reason}))};
+  },
+  async locate(item,action,from,to,quantity,reason,requestId) {
+   const {error}=await client.rpc('manage_located_stock',{p_asset_id:item.id,p_action:action,p_from:from,p_to:to,p_quantity:quantity,p_expected:[item.stock,item.quantityMi || 0,item.quantityCs || 0],p_reason:reason,p_request_id:requestId});
+   if(error)throw error;
   },
   async devices(assetId) {
    const devices=[];

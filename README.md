@@ -90,3 +90,5 @@ Les six KPI, la répartition par catégorie et les points d'attention reflètent
 les filtres actifs et la recherche. Les garanties manquantes restent facultatives.
 Voir [les règles de calcul et le périmètre](docs/dashboard.md). Aucune migration
 SQL supplémentaire n'est nécessaire pour cette présentation.
+
+Emplacements physiques : [MI / CS, installation et utilisation](docs/physical-locations.md).
