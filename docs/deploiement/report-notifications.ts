@@ -35,7 +35,7 @@ async function secretMatches(a, b) {
   for (let i = 0; i < x.length; i++) different |= x.charCodeAt(i) ^ y.charCodeAt(i);
   return different === 0;
 }
-function createMailHandler({ db: db2, env: env2, fetchImpl = fetch }) {
+function createMailHandler({ db: db2, env: env2, fetchImpl = fetch, reportId }) {
   return async (request) => {
     if (request.method !== "POST") return response(405, { error: "POST requis" });
     if (!await secretMatches(request.headers.get("x-report-worker-secret"), env2("REPORT_WORKER_SECRET"))) return response(401, { error: "Acc\xE8s refus\xE9" });
@@ -50,7 +50,7 @@ function createMailHandler({ db: db2, env: env2, fetchImpl = fetch }) {
     }
     const expired = await db2.rpc("expire_inventory_report_mail");
     if (expired.error) return response(503, { error: "File indisponible" });
-    const jobs = await db2.rpc("claim_inventory_report_mail");
+    const jobs = reportId ? await claimReportMail(db2, reportId) : await db2.rpc("claim_inventory_report_mail");
     if (jobs.error) return response(503, { error: "File indisponible" });
     let sent = 0, failed = 0;
     for (const job of jobs.data) {
@@ -80,6 +80,16 @@ function createMailHandler({ db: db2, env: env2, fetchImpl = fetch }) {
     }
     return response(200, { sent, failed });
   };
+}
+async function claimReportMail(db2, reportId) {
+  const current = await db2.from("inventory_report_mail").select("*").eq("report_id", reportId).maybeSingle();
+  if (current.error) return { data: [], error: current.error };
+  const job = current.data, now = /* @__PURE__ */ new Date();
+  const firstAttempt = job?.state === "pending" && job.attempts === 0;
+  if (!job || !["pending", "sending"].includes(job.state) || job.attempts >= 8 || !firstAttempt && new Date(job.available_at) > now) return { data: [] };
+  let claim = db2.from("inventory_report_mail").update({ state: "sending", attempts: job.attempts + 1, lease_id: crypto.randomUUID(), available_at: new Date(now.getTime() + 3e5).toISOString() }).eq("report_id", reportId).eq("state", job.state).eq("attempts", job.attempts);
+  if (!firstAttempt) claim = claim.lte("available_at", now.toISOString());
+  return await claim.select("*");
 }
 
 // supabase/functions/report-notifications/index.ts

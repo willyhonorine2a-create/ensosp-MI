@@ -6,8 +6,14 @@ async function limitedJSON(request){
  try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>8500000){await reader.cancel();throw Error('Envoi trop volumineux (trois photos de 2 Mo maximum)');}chunks.push(value);}}finally{reader.releaseLock();}
  const all=new Uint8Array(size);let position=0;for(const chunk of chunks){all.set(chunk,position);position+=chunk.length;}return JSON.parse(new TextDecoder().decode(all));
 }
-export function createSubmitHandler({db,env}){
+export function createSubmitHandler({db,env,notify,waitUntil}){
  const allowed=(env('REPORT_ALLOWED_ORIGINS')||'').split(',').map(s=>s.trim()).filter(Boolean);
+ const scheduleNotification=requestId=>{
+  if(!notify)return;
+  // L'accusé d'enregistrement n'attend pas le fournisseur de mail.
+  const task=Promise.resolve().then(()=>notify(requestId)).catch(()=>undefined);
+  try{if(waitUntil)waitUntil(task);}catch{/* Le travail reste dans la file pour reprise. */}
+ };
  return async request=>{
  const origin=request.headers.get('origin');if(!allowed.includes(origin))return response(403,{error:'Origine non autorisée'});
  const cors={'Access-Control-Allow-Origin':origin,'Vary':'Origin','Access-Control-Allow-Headers':'content-type','Access-Control-Allow-Methods':'POST, OPTIONS'};
@@ -25,7 +31,7 @@ export function createSubmitHandler({db,env}){
   const quota=await db.rpc('take_inventory_report_quota',{p_key:digest});if(quota.error)throw Error('quota');if(!quota.data)return response(429,{error:'Trop d’envois. Réessayez plus tard.'},cors);
   const hash=await sha256(JSON.stringify(payload));
   const existing=await db.from('inventory_reports').select('reference,submission_hash').eq('request_id',payload.requestId).maybeSingle();if(existing.error)throw Error('lookup');
-  if(existing.data){if(existing.data.submission_hash!==hash)return response(409,{error:'Cet envoi a changé. Rechargez le formulaire pour créer un nouveau signalement.'},cors);return response(200,{reference:existing.data.reference},cors);}
+  if(existing.data){if(existing.data.submission_hash!==hash)return response(409,{error:'Cet envoi a changé. Rechargez le formulaire pour créer un nouveau signalement.'},cors);scheduleNotification(payload.requestId);return response(200,{reference:existing.data.reference},cors);}
   for(let i=0;i<photos.length;i++){
    const path=`${payload.requestId}/${crypto.randomUUID()}.${photos[i].extension}`;
    paths.push(path);const result=await db.storage.from('inventory-report-photos').upload(path,photos[i].bytes,{contentType:payload.photos[i].type,upsert:false});if(result.error)throw Error('upload');
@@ -33,6 +39,7 @@ export function createSubmitHandler({db,env}){
   saveStarted=true;const saved=await db.rpc('submit_inventory_report',{p_request_id:payload.requestId,p_hash:hash,p_vehicle_id:payload.vehicleId,p_revision:payload.revision,p_name:payload.name,p_contact:payload.contact,p_items:payload.items,p_photos:paths.map(path=>({path}))});
   if(saved.error){if(paths.length)await db.storage.from('inventory-report-photos').remove(paths);return response(saved.error.code==='40001'?409:400,{error:saved.error.code==='40001'?'La fiche ou l’affectation a changé. Rechargez la page avant de recommencer.':'Enregistrement impossible. Vérifiez les champs et rechargez la fiche.'},cors);}
   if(saved.data.existing&&paths.length)await db.storage.from('inventory-report-photos').remove(paths);
+  scheduleNotification(payload.requestId);
   return response(200,{reference:saved.data.reference},cors);
  }catch{
   if(!saveStarted&&paths.length){try{await db.storage.from('inventory-report-photos').remove(paths);}catch{/* Nettoyage manuel si Storage est indisponible. */}}
@@ -42,7 +49,7 @@ export function createSubmitHandler({db,env}){
  };
 }
 async function secretMatches(a,b){if(!a||!b)return false;const x=await sha256(a),y=await sha256(b);let different=0;for(let i=0;i<x.length;i++)different|=x.charCodeAt(i)^y.charCodeAt(i);return different===0;}
-export function createMailHandler({db,env,fetchImpl=fetch}){
+export function createMailHandler({db,env,fetchImpl=fetch,reportId}){
  return async request=>{
  if(request.method!=='POST')return response(405,{error:'POST requis'});
  if(!await secretMatches(request.headers.get('x-report-worker-secret'),env('REPORT_WORKER_SECRET')))return response(401,{error:'Accès refusé'});
@@ -52,7 +59,7 @@ export function createMailHandler({db,env,fetchImpl=fetch}){
  if(env('REPORT_EMAIL_ENABLED')!=='true'||!providerReady||!env('PUBLIC_APP_URL'))return response(503,{error:'Notifications non activées ou configuration incomplète'});
  try{mailFor({reference:0,items:[],photos:[]},env('PUBLIC_APP_URL'));}catch{return response(503,{error:'URL publique invalide'});}
  const expired=await db.rpc('expire_inventory_report_mail');if(expired.error)return response(503,{error:'File indisponible'});
- const jobs=await db.rpc('claim_inventory_report_mail');if(jobs.error)return response(503,{error:'File indisponible'});
+ const jobs=reportId?await claimReportMail(db,reportId):await db.rpc('claim_inventory_report_mail');if(jobs.error)return response(503,{error:'File indisponible'});
  let sent=0,failed=0;
  for(const job of jobs.data){
   let success=false,errorCode='notification_failed';
@@ -71,5 +78,32 @@ export function createMailHandler({db,env,fetchImpl=fetch}){
   if(success&&!finished.error)sent++;else failed++;
  }
  return response(200,{sent,failed});
+ };
+}
+
+// Réserver uniquement le mail du formulaire qui vient d'être enregistré.
+// La comparaison état/tentatives et la date sont contrôlées dans le même UPDATE :
+// le worker périodique et les requêtes concurrentes ne peuvent pas le réserver deux fois.
+export async function claimReportMail(db,reportId){
+ const current=await db.from('inventory_report_mail').select('*').eq('report_id',reportId).maybeSingle();
+ if(current.error)return {data:[],error:current.error};
+ const job=current.data,now=new Date();
+ const firstAttempt=job?.state==='pending'&&job.attempts===0;
+ if(!job||!['pending','sending'].includes(job.state)||job.attempts>=8||(!firstAttempt&&new Date(job.available_at)>now))return {data:[]};
+ // La première tentative est due dès la création ; un petit décalage d'horloge
+ // entre PostgreSQL et l'Edge Function ne doit pas la repousser au secours périodique.
+ let claim=db.from('inventory_report_mail').update({state:'sending',attempts:job.attempts+1,lease_id:crypto.randomUUID(),available_at:new Date(now.getTime()+300000).toISOString()})
+ .eq('report_id',reportId).eq('state',job.state).eq('attempts',job.attempts);
+ if(!firstAttempt)claim=claim.lte('available_at',now.toISOString());
+ return await claim.select('*');
+}
+export function createImmediateNotifier({db,env,fetchImpl=fetch}){
+ return async requestId=>{
+  if(env('REPORT_EMAIL_ENABLED')!=='true'||!env('REPORT_WORKER_SECRET'))return;
+  const report=await db.from('inventory_reports').select('id').eq('request_id',requestId).maybeSingle();
+  if(report.error||!report.data)return;
+  const handler=createMailHandler({db,env,fetchImpl,reportId:report.data.id});
+  // Appel local au processeur partagé, sans aller-retour HTTP vers une autre fonction.
+  return handler(new Request('https://internal.invalid/report-notifications',{method:'POST',headers:{'x-report-worker-secret':env('REPORT_WORKER_SECRET')}}));
  };
 }

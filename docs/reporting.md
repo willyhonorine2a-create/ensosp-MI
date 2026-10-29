@@ -47,7 +47,7 @@ la base doivent être configurés. Aucun déploiement distant ni envoi de mail n
 | --- | --- |
 | `REPORT_ALLOWED_ORIGINS` | Origines HTTPS exactes, séparées par des virgules, sans chemin ni slash final ; pas de `*`. |
 | `REPORT_RATE_SECRET` | Secret aléatoire d’au moins 32 caractères pour anonymiser les limites d’envoi. |
-| `REPORT_WORKER_SECRET` | Autre secret aléatoire d’au moins 32 caractères, utilisé uniquement par le planificateur. |
+| `REPORT_WORKER_SECRET` | Autre secret aléatoire d’au moins 32 caractères, utilisé par le traitement interne des notifications et le planificateur. |
 | `REPORT_EMAIL_ENABLED` | `false` tant que la recette et le choix de l’expéditeur ne sont pas terminés ; `true` pour activer les mails. |
 | `RESEND_API_KEY` | Clé API Resend pour le domaine d’expédition vérifié. |
 | `REPORT_EMAIL_FROM` | Adresse d’expédition autorisée par Resend. Le destinataire n’est pas l’expéditeur. |
@@ -71,18 +71,24 @@ fonctions. La première vérifie elle-même l’origine, le champ invisible, les
 limites d’envoi. La seconde exige `x-report-worker-secret`. Aucune RPC de dépôt ou
 de file mail n’est exécutable avec les clés anon/authenticated.
 
-5. Les notifications automatiques nécessitent un planificateur. Dans **Supabase
+5. La première tentative part immédiatement après enregistrement, en arrière-plan.
+   Pour reprendre les notifications restées en attente après un échec ou une interruption,
+   configurer aussi le planificateur de secours. Dans **Supabase
 Vault** du projet de test, créer `inventory_report_worker_url` (URL de la fonction
 report-notifications) et `inventory_report_worker_secret` (même secret que
 REPORT_WORKER_SECRET). Ne pas afficher leurs valeurs en chat. Exécuter ensuite
-**027_schedule_report_notifications.sql**. Le job appelle la fonction chaque minute.
+**027_schedule_report_notifications.sql**. Le job de secours appelle la fonction chaque minute ; il n’est pas nécessaire au premier essai d’un nouveau formulaire.
 Ce script optionnel dépend des extensions pg_cron, pg_net et Vault ; il n’est pas
 exécutable dans le PostgreSQL embarqué des tests. Si ces extensions ne sont pas
 disponibles, configurer un planificateur de confiance qui fait le même POST HTTPS.
 
 ## Notifications et protection des données
 
-L’enregistrement et la création du travail mail sont atomiques. Le worker réserve
+L’enregistrement et la création du travail mail sont atomiques. La fonction publique
+déclenche ensuite, via EdgeRuntime.waitUntil, le traitement du seul mail de ce formulaire.
+La confirmation SIG est retournée sans attendre Google ou Resend. Les réservations
+atomiques empêchent l’envoi simultané par la tâche immédiate et celle de secours.
+Le worker périodique réserve
 cinq travaux maximum par passage, utilise une location de cinq minutes, et ne
 confond pas la réussite de l’enregistrement avec celle de l’envoi. Les échecs sont
 retentés avec un délai croissant, jusqu’à huit essais. Les travaux expirés au
@@ -190,3 +196,23 @@ ou mise à jour de fonction Supabase n’est nécessaire : il envoie une seule l
 et une liste de photos vide. Les anciens signalements, leurs photos et leur suivi
 administrateur sont conservés. Le serveur reste compatible avec les anciennes
 versions du formulaire ; ses plafonds de taille restent en place.
+
+## Mise à jour pour l’envoi immédiat
+
+Dans Supabase **Edge Functions → inventory-report → Code**, remplacer tout le
+contenu de index.ts par `docs/deploiement/inventory-report.ts`, puis déployer.
+Le bundle autonome inclut le processeur mail et le maintien de sa tâche en
+arrière-plan par EdgeRuntime.waitUntil. Conserver la vérification JWT de la
+passerelle désactivée, comme auparavant.
+
+Aucun nouveau SQL ni secret n’est requis. La fonction report-notifications et le
+script Google déjà installés restent compatibles. Les secrets Gmail, PUBLIC_APP_URL,
+REPORT_WORKER_SECRET et REPORT_EMAIL_ENABLED=true doivent toujours être corrects.
+
+Faire un nouveau signalement de test : la tentative d’envoi doit démarrer sans
+attendre la minute suivante. Un ancien retard dans la file ne passe pas avant ce
+mail. La référence SIG confirme uniquement l’enregistrement, pas la livraison.
+Une panne du fournisseur laisse le travail en attente ou en échec dans le suivi.
+Installer ensuite le planificateur 027 pour la reprise automatique de ces cas.
+Sans planificateur, une nouvelle tentative du même formulaire peut réveiller son
+mail, mais ne constitue pas un mécanisme général de reprise automatique.

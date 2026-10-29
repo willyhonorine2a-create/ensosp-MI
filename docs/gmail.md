@@ -52,14 +52,16 @@ le dépôt public du formulaire et sont indépendants de l'envoi des mails.
 
 ## 3. Planification et recette réelle
 
-Le relais ne lit jamais Supabase directement. Les notifications proviennent de
-la file existante, alimentée lors de chaque signalement.
+Le relais ne lit jamais Supabase directement. Après chaque enregistrement, la
+fonction inventory-report tente immédiatement l’envoi en arrière-plan pour ce
+signalement précis. Elle utilise les mêmes paramètres Gmail que le worker de secours.
+Le visiteur reçoit sa référence sans attendre la réponse de Google.
 
-Créer dans Supabase Vault les secrets `inventory_report_worker_url` (URL de
+Pour la reprise automatique après échec ou interruption, créer dans Supabase Vault les secrets `inventory_report_worker_url` (URL de
 report-notifications dans Supabase) et `inventory_report_worker_secret` (même valeur
 que REPORT_WORKER_SECRET), puis appliquer le script optionnel
-`027_schedule_report_notifications.sql`. La planification appelle le worker chaque
-minute. Elle peut traiter les signalements de test déjà en attente ; les reconnaître
+`027_schedule_report_notifications.sql`. Cette planification de secours appelle le worker chaque
+minute ; elle ne retarde pas l’envoi immédiat des nouveaux formulaires. Elle peut traiter les signalements de test déjà en attente ; les reconnaître
 à leur description de test. Ne pas marquer les mails comme envoyés manuellement.
 
 Faire un signalement de test, vérifier l'état de la notification dans le suivi
@@ -80,3 +82,9 @@ de sa confirmation peut néanmoins entraîner un doublon ; la garantie n'est pas
 exactement une fois. Après sept jours, une reprogrammation manuelle peut renvoyer
 le même signalement. La génération d'un QR ou l'enregistrement d'un signalement
 ne prouve pas qu'un mail a été livré.
+
+Après passage à l’envoi immédiat, remplacer seulement le code de la fonction
+Supabase inventory-report par sa version autonome actuelle et déployer. Aucun
+changement du script Google, des secrets ou des tables n’est requis. Les paramètres
+Gmail doivent avoir été configurés et les notifications activées comme indiqué
+ci-dessus. Tester une réception réelle avant de considérer l’intégration validée.
