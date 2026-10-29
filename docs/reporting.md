@@ -132,3 +132,32 @@ Les tests automatisés utilisent PostgreSQL/PGlite et des réponses Turnstile/Re
 simulées. Ils ne prouvent ni le déploiement des Edge Functions, ni les droits DNS,
 ni la livraison réelle d’un mail. Aucun déploiement de production n’est autorisé
 par cette livraison.
+
+## Installation sans ZIP et sans terminal
+
+Les fichiers `docs/deploiement/inventory-report.ts` et
+`docs/deploiement/report-notifications.ts` sont des versions autonomes générées
+à partir des sources ci-dessus. Ils ne contiennent aucune clé secrète. Sur GitHub,
+utiliser **Copy raw file** pour copier chaque fichier complet.
+
+Dans le projet Supabase de test, ouvrir **Edge Functions**, créer une fonction
+avec l’éditeur, et nommer la première **inventory-report**. Remplacer tout le
+contenu du fichier `index.ts` proposé par celui de la version autonome correspondante,
+puis déployer. Faire de même pour **report-notifications**. Désactiver pour chacune
+la vérification JWT de la passerelle dans les paramètres : le dépôt public vérifie
+Turnstile et l’origine, et le worker exige son secret dédié. Le service reste
+inactif tant que les secrets décrits plus haut ne sont pas configurés.
+
+Les variables `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` sont déjà injectées
+par Supabase : ne pas en saisir de nouvelles, ni les copier depuis le tableau de bord.
+Les clés supplémentaires se renseignent uniquement dans **Edge Functions → Secrets**.
+Ne pas les mettre dans le fichier de code ou dans le chat.
+
+Pour maintenir ces versions autonomes après modification des fonctions serveur :
+
+```sh
+node scripts/prepare_edge_editor.mjs
+```
+
+Le déploiement par l’éditeur ne constitue pas une vérification du formulaire ni
+de l’envoi mail : poursuivre la configuration et la recette de test ci-dessus.
