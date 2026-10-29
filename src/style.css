@@ -343,3 +343,45 @@ input:focus,select:focus,textarea:focus { border-color:#7896aa; }
 .pill { color:#2c7259; }.warning { color:#805d24; }
 .danger-outline { color:#9e5545; }
 .watch-item.neutral strong { color:#536d83; }.watch-item.danger strong { color:#9e5040; }
+
+/* Charte du portail AP COND : marine, rouge et cartes claires. */
+:root { --navy:#1d284e; --coral:#ed1c24; background:#f7f9fc; color:#101f39; }
+body { background:#f7f9fc; }
+.overview-emblem { display:block; margin:0 auto 20px; border-radius:16px; }
+.dashboard-ready .intro { display:flex; flex-direction:column; align-items:center; text-align:center; gap:22px; margin:12px 0 32px; }
+.intro h1 { font-size:clamp(25px,2.4vw,34px); letter-spacing:-.7px; color:#0b1c36; }
+.intro .eyebrow { display:none; }
+.intro p { color:#405d7d; }
+.dashboard-ready .intro-actions { padding-top:0; justify-content:center; }
+.filter-panel,.stats .kpi-card,.insight-panel { border:1px solid #dde5ef; border-radius:17px; background:#fff; box-shadow:0 2px 3px #18314b08; }
+.stats .featured { background:#fff; border-color:#dde5ef; }
+.stats .featured::after { display:none; }
+.stats .featured strong,.stats article strong,.stats article:last-child strong { color:#0b1c36; }
+.stats .featured .kpi-heading > span,.stats .featured p { color:#405d7d; }
+.stats .kpi-icon,.stats .featured .kpi-icon,.stats .teal .kpi-icon,.stats .amber .kpi-icon,.stats .coral .kpi-icon { width:44px; height:44px; border-radius:13px; background:#fff2f3; color:#ed1c24; }
+.stats .kpi-icon .icon { width:24px; height:24px; }
+.stats .kpi-heading > span { color:#132440; font-weight:750; font-size:14px; }
+.stats .kpi-card { min-height:168px; padding:22px; }
+.section-heading h2,.insight-title h2 { color:#0b1c36; font-weight:800; }
+.filter-chip { background:#fff2f3; color:#ab1821; }
+button { background:#e71d2b; }
+button.secondary { background:#f0f3f8; color:#304e70; }
+.availability-ring { background:conic-gradient(#ed1c24 calc(var(--rate)*1%),#fff0f1 0); }
+.bar-track span { background:#1d284e; }
+.mobile-nav a[aria-current="location"] { background:#fff2f3; color:#c51823; }
+@media(min-width:1101px) {
+ .dashboard-ready .app-sidebar { background:white; border-right:1px solid #dde5ef; color:#405d7d; }
+ .sidebar-brand span { color:#101f39; }.sidebar-brand .brand-mark { color:#ed1c24; }.sidebar-brand small { color:#405d7d; }
+ .app-sidebar nav a { color:#405d7d; min-height:54px; }
+ .app-sidebar nav a .icon { color:#ed1c24; }
+ .app-sidebar nav a[aria-current="location"] { color:#0b1c36; background:#fff2f3; box-shadow:inset 3px 0 #ed1c24; font-weight:750; }
+ .app-sidebar nav a:hover,.app-sidebar nav a:focus-visible { color:#0b1c36; background:#f3f6fa; }
+ .sidebar-footer { border-color:#dde5ef; color:#ed1c24; }.sidebar-footer strong { color:#243c5b; }.sidebar-footer small { color:#526b87; }
+}
+@media(max-width:740px) {
+ .overview-emblem { width:76px; height:76px; margin-bottom:18px; }
+ .stats .kpi-card { padding:16px; }.stats .kpi-heading > span { font-size:12px; }
+ .stats .kpi-icon,.stats .featured .kpi-icon,.stats .teal .kpi-icon,.stats .amber .kpi-icon,.stats .coral .kpi-icon { width:30px; height:30px; border-radius:9px; }
+ .stats .kpi-icon .icon { width:19px; height:19px; }
+}
+.stats .kpi-heading .kpi-icon { color:#ed1c24; }

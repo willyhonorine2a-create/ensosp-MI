@@ -1,7 +1,8 @@
-import {mkdir,copyFile,rm} from 'node:fs/promises';
+import {mkdir,copyFile,rm,cp} from 'node:fs/promises';
 import {build} from 'esbuild';
 await rm('dist',{recursive:true,force:true});
 await mkdir('dist/src',{recursive:true});
+await cp('public','dist',{recursive:true});
 await copyFile('index.html','dist/index.html');
 await copyFile('src/style.css','dist/src/style.css');
 await build({entryPoints:['src/app.js'],bundle:true,format:'esm',target:'es2022',outfile:'dist/src/app.js',minify:true});
