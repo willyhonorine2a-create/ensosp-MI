@@ -3,9 +3,11 @@
 ## Parcours livré
 
 - `/signalement/` : formulaire public sans authentification, centre puis engin,
-  compartiment/matériel ou saisie « Autre », manque/casse/dysfonctionnement/autre,
-  quantité et description. Jusqu’à 20 matériels et trois photos JPEG/PNG/WebP de
-  2 Mo. Coordonnées facultatives. Le ZIP fourni apporte 38 illustrations de familles.
+  liste unique des matériels de l’engin, manque/casse/dysfonctionnement/autre,
+  quantité et description. Un matériel par signalement, sans choix de compartiment,
+  sans ajout/retrait de ligne et sans téléversement de photo. Coordonnées facultatives.
+  Le ZIP fourni apporte 38 illustrations de familles, conservées à l’affichage.
+  Un matériel présent à plusieurs endroits ne reçoit pas arbitrairement un compartiment.
 - Chaque engin et sa fiche possèdent un lien qui préremplit l’engin. L’affectation
   est relue et la révision vérifiée au moment de l’envoi ; une fiche ayant changé
   est refusée avec invitation à recharger.
@@ -116,7 +118,7 @@ est possible. Aucune modification du formulaire Microsoft n’a été effectuée
 
 ## Recette requise avant ouverture
 
-1. Tester un engin avec fiche et un engin sans fiche, puis plusieurs matériels.
+1. Tester un engin avec fiche et un engin sans fiche ; vérifier la liste des matériels, la saisie « Autre matériel » et l’absence de sélection de compartiment ou de pièce jointe.
 2. Envoyer sans CAPTCHA sur la preview de test, vérifier le numéro et la ligne
    Supabase ; simuler une coupure et réessayer sans fermer la page.
 3. Vérifier qu’un visiteur et un lecteur ne voient ni coordonnées ni photos.
@@ -172,3 +174,11 @@ créées, ne sont plus utilisées. Ne pas toucher aux secrets nécessaires aux
 notifications. Les deux réglages encore nécessaires au dépôt sont
 `REPORT_ALLOWED_ORIGINS` et `REPORT_RATE_SECRET` dans Supabase Edge Functions
 Secrets. Le service refuse les envois tant qu’ils ne sont pas configurés.
+
+## Formulaire simplifié
+
+La simplification concerne le formulaire public. Aucune nouvelle migration SQL
+ou mise à jour de fonction Supabase n’est nécessaire : il envoie une seule ligne
+et une liste de photos vide. Les anciens signalements, leurs photos et leur suivi
+administrateur sont conservés. Le serveur reste compatible avec les anciennes
+versions du formulaire ; ses plafonds de taille restent en place.
