@@ -1,3 +1,4 @@
+import {colorCenterControl} from './centers.js';
 import {physicalLocations,locationCounts,locationSummary} from './locations.js';
 import {fields,identificationFields,validateAsset} from './patrimoine.js';
 const $ = id => document.getElementById(id);
@@ -234,7 +235,7 @@ function openAsset(item) {
  $('trackingMode').disabled=Boolean(item);$('trackingMode').value=item?.trackingMode || 'quantity';syncTrackingMode();
  if(!isAdmin())readonlyForm($('itemForm'),true);
  $('stockHelp').textContent=item?.trackingMode==='individual'?'Pour modifier ce stock, ajoutez ou retirez un appareil depuis le chiffre du stock.':item?'Pour modifier la quantité, enregistrez un mouvement.':'Quantité initiale du matériel.';
- $('itemDialog').showModal();
+ colorCenterControl($('itemForm').elements.location);$('itemDialog').showModal();
 }
 $('add').onclick = () => openAsset();
 for(const id of ['categoryFilter','locationFilter','modeFilter']) $(id).onchange=render;

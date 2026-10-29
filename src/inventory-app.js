@@ -1,3 +1,4 @@
+import {centerBadge,centerLine,paintCenter,colorCenterControl} from './centers.js';
 import {client,loadInventory,installInventoryAdmin} from './inventory-repository.js';
 import {filterVehicles,filterSections,inventoryTotals} from './public-inventory.js';
 const $=id=>document.getElementById(id);
@@ -6,9 +7,9 @@ let data=null,limit=12,selectedSheet=null,isAdmin=false,editVehicle=()=>{};
 const hashFor=(center='',vehicle='')=>'#'+new URLSearchParams({...center?{centre:center}:{},...vehicle?{engin:vehicle}:{}}).toString();
 const sheetFor=vehicle=>data.sheets.find(sheet=>sheet.id===vehicle.sheetId);
 function renderFleet(){
- const center=$('centerFilter').value,search=$('vehicleSearch').value,onlySheets=$('onlySheets').checked;
+ colorCenterControl($('centerFilter'));const center=$('centerFilter').value,search=$('vehicleSearch').value,onlySheets=$('onlySheets').checked;
  const visible=filterVehicles(data.vehicles,{center,search,onlySheets});
- $('vehiclesHeading').textContent=center?`Les engins · ${center}`:'Les engins';$('vehicleCount').textContent=`${visible.length} engin(s)`;
+ if(center)centerLine($('vehiclesHeading'),center,{before:'Les engins · '});else $('vehiclesHeading').textContent='Les engins';$('vehicleCount').textContent=`${visible.length} engin(s)`;
  $('centerCards').querySelectorAll('a').forEach(link=>{if(link.dataset.center===center)link.setAttribute('aria-current','true');else link.removeAttribute('aria-current');});
  $('vehicleCards').replaceChildren();
  for(const vehicle of visible.slice(0,limit)){
@@ -16,7 +17,7 @@ function renderFleet(){
   const visual=el('div',undefined,'vehicle-visual');
   if(sheet?.photos.length){const image=el('img');image.src=sheet.photos[0].src;image.alt=`Photo de la fiche ${vehicle.name}`;image.loading='lazy';visual.append(image);}
   else {visual.append(el('span',vehicle.name.match(/^[A-Z]+/)?.[0] || vehicle.name,'vehicle-type'));visual.setAttribute('aria-hidden','true');}
-  const content=el('div',undefined,'vehicle-content');content.append(el('span',vehicle.center || 'Affectation à confirmer','vehicle-center'),el('h3',vehicle.name),el('p',vehicle.registration,'registration'));
+  const content=el('div',undefined,'vehicle-content');content.append(centerBadge(vehicle.center,'vehicle-center'),el('h3',vehicle.name),el('p',vehicle.registration,'registration'));
   if(sheet){const link=el('a','Consulter l’inventaire →','sheet-link');link.href=hashFor(vehicle.center,vehicle.id);content.append(link);}
   else content.append(el('span','Fiche à ajouter','sheet-pending'));
   if(isAdmin){const edit=el('button','Modifier la fiche et l’affectation','secondary vehicle-edit');edit.onclick=()=>editVehicle(vehicle);content.append(edit);}
@@ -41,7 +42,7 @@ function renderEquipment(){
 }
 function openSheet(vehicle,sheet){
  selectedSheet=sheet;$('fleetView').hidden=true;$('sheetView').hidden=false;
- $('sheetTitle').textContent=vehicle.name;$('sheetCenter').textContent=`${vehicle.center || 'Affectation à confirmer'} · INVENTAIRE DE L’ENGIN`;
+ $('sheetTitle').textContent=vehicle.name;centerLine($('sheetCenter'),vehicle.center,{after:' · INVENTAIRE DE L’ENGIN'});
  $('sheetRegistration').textContent=vehicle.registration;$('sheetMetadata').textContent=`Document : ${sheet.source} · Mise à jour : ${sheet.updatedAt} · Version ${sheet.version}`;
  $('reportSheet').href='/signalement/?engin='+encodeURIComponent(vehicle.id);$('backToFleet').href=hashFor(vehicle.center);$('equipmentSearch').value='';
  const totals=inventoryTotals(sheet);$('sheetTotals').replaceChildren(...[[totals.sections,'compartiments'],[totals.lines,'lignes de matériel'],[totals.units,'unités dans la fiche']].map(([count,label])=>{const stat=el('div');stat.append(el('strong',String(count)),el('span',label));return stat;}));
@@ -74,7 +75,7 @@ async function load(){
   $('centerCards').replaceChildren();
   for(const center of centers){
    const vehicles=data.vehicles.filter(v=>v.center===center),sheets=vehicles.filter(v=>sheetFor(v));
-   const link=el('a',undefined,'center-card');link.href=hashFor(center);link.dataset.center=center;
+   const link=el('a',undefined,'center-card');link.href=hashFor(center);link.dataset.center=center;paintCenter(link,center);
    link.append(el('span',center,'center-name'),el('strong',`${vehicles.length} engins`),el('small',sheets.length?`${sheets.length} fiche disponible`:'Fiches à compléter'));$('centerCards').append(link);
   }
   route();

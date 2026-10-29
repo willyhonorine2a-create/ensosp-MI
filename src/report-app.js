@@ -1,3 +1,4 @@
+import {centerLine,colorCenterControl} from './centers.js';
 import {loadInventory} from './inventory-repository.js';
 import {supabaseUrl} from './config.js';
 import {kinds,validateSubmission} from '../supabase/functions/_shared/report-model.js';
@@ -26,7 +27,7 @@ function renderMaterial(){
  materialFields={equipment,custom,kind,quantity,description};
 }
 function vehicleChanged(){
- const v=vehicle();$('reportVehicleInfo').textContent=v?`${v.name} · ${v.registration} · ${v.center}`:'';renderMaterial();
+ const v=vehicle();colorCenterControl($('reportCenter'));if(v)centerLine($('reportVehicleInfo'),v.center,{before:`${v.name} · ${v.registration} · `});else $('reportVehicleInfo').replaceChildren();renderMaterial();
 }
 function centerChanged(selected=''){
  const list=fleet.vehicles.filter(v=>v.center===$('reportCenter').value);$('reportVehicle').replaceChildren(new Option('Choisir un engin',''),...list.map(v=>new Option(`${v.name} — ${v.registration}`,v.id)));if(list.some(v=>v.id===selected))$('reportVehicle').value=selected;vehicleChanged();
@@ -46,7 +47,7 @@ $('reportForm').onsubmit=async event=>{
  kind:materialFields.kind.value,quantity:Number(materialFields.quantity.value),description:materialFields.description.value
  }]});
  const response=await fetch(`${supabaseUrl}/functions/v1/inventory-report`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,consent:true}),signal:AbortSignal.timeout(45000)});const body=await response.json();if(!response.ok)throw Error(body.error||'Envoi non confirmé');
- $('reportForm').hidden=true;$('reportReceipt').hidden=false;$('receiptNumber').textContent=`Référence : SIG-${body.reference}. Centre : ${v.center} · ${v.name}.`;$('reportReceipt').focus();
+ $('reportForm').hidden=true;$('reportReceipt').hidden=false;centerLine($('receiptNumber'),v.center,{before:`Référence : SIG-${body.reference}. Centre : `,after:` · ${v.name}.`});$('reportReceipt').focus();
  }catch(error){$('reportError').textContent=error.name==='TimeoutError'?'Envoi non confirmé. Gardez le formulaire ouvert et réessayez pour éviter un doublon.':error.message||'Connexion interrompue : réessayez sans fermer le formulaire.';}
  finally{sending=false;$('reportForm').inert=false;$('reportForm').removeAttribute('aria-busy');$('sendReport').textContent='Envoyer le signalement';$('sendReport').disabled=false;}
 };

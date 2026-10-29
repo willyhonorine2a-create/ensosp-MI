@@ -101,3 +101,5 @@ Remontées terrain : [formulaire public, suivi administrateur, mails et QR](docs
 Les migrations 025/026 et les fonctions serveur doivent être installées dans le
 projet de test avant activation ; le planificateur mail est décrit dans la migration
 optionnelle 027. Aucune notification n’est envoyée tant que l’activation est incomplète.
+
+Repères visuels : [couleurs des centres de secours](docs/centers.md).
