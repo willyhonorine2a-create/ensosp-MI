@@ -72,19 +72,19 @@ def prepare(directory,fleet,output):
                         sheet['photos'].append({'src':'/inventaire/photos/'+filename,'caption':'Photo de profil intégrée à la fiche fournie'})
             payload=json.dumps(sheet,ensure_ascii=False).replace("'","''")
             vid=vehicle['id'].replace("'","''");registration=vehicle['registration'].replace("'","''")
-            statements.append(f"UPDATE public.inventory_vehicles SET sheet='{payload}'::jsonb,revision=revision+1 WHERE id='{vid}' AND registration='{registration}' AND revision=1;")
+            statements.append(f"""WITH previous AS MATERIALIZED (
+ SELECT * FROM public.inventory_vehicles WHERE id='{vid}' AND registration='{registration}' AND revision=1 FOR UPDATE
+), changed AS (
+ UPDATE public.inventory_vehicles v SET sheet='{payload}'::jsonb,revision=v.revision+1
+ FROM previous b WHERE v.id=b.id AND v.revision=b.revision
+ RETURNING v.id,to_jsonb(b) AS before_data,to_jsonb(v) AS after_data
+)
+INSERT INTO public.inventory_events(vehicle_id,actor_id,reason,before_data,after_data)
+SELECT id,null,'Import des fiches Excel fournies',before_data,after_data FROM changed;""")
             report.append([path.name,f"Prêt : {vehicle['name']}, {sum(len(s['items']) for s in sheet['sections'])} lignes"])
         except ValueError as error:report.append([path.name,str(error)])
-    # Journaliser les seules lignes réellement modifiées ; préserver les fiches déjà éditées.
-    sql="""begin;
-create temporary table inventory_before_import on commit drop as select * from public.inventory_vehicles;
-"""+'\n'.join(statements)+"""
-insert into public.inventory_events(vehicle_id,actor_id,reason,before_data,after_data)
-select v.id,null,'Import des fiches Excel fournies',to_jsonb(b),to_jsonb(v)
-from public.inventory_vehicles v join inventory_before_import b using(id)
-where v.revision<>b.revision;
-commit;
-"""
+    # Chaque instruction met à jour et journalise dans une seule opération SQL.
+    sql="begin;\n"+'\n'.join(statements)+"\ncommit;\n"
     output.write_text(sql);return report
 
 if __name__=='__main__':
