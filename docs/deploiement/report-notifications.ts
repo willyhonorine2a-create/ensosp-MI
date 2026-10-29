@@ -39,7 +39,10 @@ function createMailHandler({ db: db2, env: env2, fetchImpl = fetch }) {
   return async (request) => {
     if (request.method !== "POST") return response(405, { error: "POST requis" });
     if (!await secretMatches(request.headers.get("x-report-worker-secret"), env2("REPORT_WORKER_SECRET"))) return response(401, { error: "Acc\xE8s refus\xE9" });
-    if (env2("REPORT_EMAIL_ENABLED") !== "true" || !env2("RESEND_API_KEY") || !env2("REPORT_EMAIL_FROM") || !env2("PUBLIC_APP_URL")) return response(503, { error: "Notifications non activ\xE9es ou configuration incompl\xE8te" });
+    const provider = env2("REPORT_MAIL_PROVIDER") || "resend";
+    const gmailUrl = env2("GMAIL_WEBAPP_URL");
+    const providerReady = provider === "gmail" ? gmailUrl && /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(gmailUrl) && (env2("GMAIL_WEBAPP_SECRET") || "").length >= 32 : provider === "resend" && env2("RESEND_API_KEY") && env2("REPORT_EMAIL_FROM");
+    if (env2("REPORT_EMAIL_ENABLED") !== "true" || !providerReady || !env2("PUBLIC_APP_URL")) return response(503, { error: "Notifications non activ\xE9es ou configuration incompl\xE8te" });
     try {
       mailFor({ reference: 0, items: [], photos: [] }, env2("PUBLIC_APP_URL"));
     } catch {
@@ -56,9 +59,18 @@ function createMailHandler({ db: db2, env: env2, fetchImpl = fetch }) {
         const result = await db2.from("inventory_reports").select("*").eq("id", job.report_id).single();
         if (result.error) throw Error("report");
         const mail = mailFor(result.data, env2("PUBLIC_APP_URL"));
-        const email = await fetchImpl("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${env2("RESEND_API_KEY")}`, "Content-Type": "application/json", "Idempotency-Key": `inventory-report/${job.report_id}` }, body: JSON.stringify({ from: env2("REPORT_EMAIL_FROM"), ...mail }), signal: AbortSignal.timeout(15e3) });
-        success = email.ok;
-        errorCode = `provider_http_${email.status}`;
+        if (provider === "gmail") {
+          const email = await fetchImpl(gmailUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ secret: env2("GMAIL_WEBAPP_SECRET"), id: job.report_id, subject: mail.subject, text: mail.text }), signal: AbortSignal.timeout(2e4) });
+          if (email.ok) {
+            const result2 = await email.json();
+            success = result2.ok === true;
+            errorCode = "gmail_relay_failed";
+          } else errorCode = `provider_http_${email.status}`;
+        } else {
+          const email = await fetchImpl("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${env2("RESEND_API_KEY")}`, "Content-Type": "application/json", "Idempotency-Key": `inventory-report/${job.report_id}` }, body: JSON.stringify({ from: env2("REPORT_EMAIL_FROM"), ...mail }), signal: AbortSignal.timeout(15e3) });
+          success = email.ok;
+          errorCode = `provider_http_${email.status}`;
+        }
       } catch {
         errorCode = "transport_or_configuration_error";
       }

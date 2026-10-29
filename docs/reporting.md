@@ -20,6 +20,14 @@
   tentative réémise sans changement ne crée pas de doublon ; garder la page ouverte
   après une coupure. Le mail est distinct de l’accusé d’enregistrement.
 
+## Choix du service mail
+
+Le destinataire est déjà **magasin-central@ensosp.fr**. Pour expédier depuis votre
+compte Gmail sans Resend, suivre [la procédure Google Apps Script](gmail.md).
+Le mode Gmail utilise REPORT_MAIL_PROVIDER=gmail ; les clés Resend et
+REPORT_EMAIL_FROM ne sont alors pas nécessaires. Les réglages Resend ci-dessous
+restent une alternative.
+
 ## Activation dans Supabase de TEST
 
 Le code du formulaire seul ne suffit pas : les fonctions serveur et

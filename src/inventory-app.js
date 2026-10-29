@@ -21,7 +21,7 @@ function renderFleet(){
   if(sheet){const link=el('a','Consulter l’inventaire →','sheet-link');link.href=hashFor(vehicle.center,vehicle.id);content.append(link);}
   else content.append(el('span','Fiche à ajouter','sheet-pending'));
   if(isAdmin){const edit=el('button','Modifier la fiche et l’affectation','secondary vehicle-edit');edit.onclick=()=>editVehicle(vehicle);content.append(edit);}
-  const report=el('a','Signaler un problème','public-inventory-link vehicle-report');report.href='/signalement/?engin='+encodeURIComponent(vehicle.id);content.append(report);
+  const report=el('a','Signaler un problème','public-inventory-link vehicle-report report-cta');report.href='/signalement/?engin='+encodeURIComponent(vehicle.id);content.append(report);
   card.append(visual,content);$('vehicleCards').append(card);
  }
  $('noVehicles').hidden=visible.length>0;$('moreVehicles').hidden=visible.length<=limit;

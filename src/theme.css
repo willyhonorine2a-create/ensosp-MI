@@ -172,3 +172,19 @@ select.cs-control[data-cs-center],input.cs-control[data-cs-center] {background:v
 .cs-control option[data-cs-center] {background:var(--cs-bg);color:var(--cs-fg);}
 .sheet-heading .eyebrow .cs-badge {font-size:12px;}.report-card .cs-badge{margin-right:4px;}
 @media print { [data-cs-center] {-webkit-print-color-adjust:exact;print-color-adjust:exact;} }
+
+/* Signalement : action visible dès l’arrivée via le QR public. */
+.report-cta,.public-inventory-link.report-cta,.vehicle-content .vehicle-report.report-cta {
+ display:inline-flex;align-items:center;justify-content:center;gap:10px;
+ min-height:48px;padding:13px 18px;border:1px solid #ac2030;border-radius:10px;
+ background:#c72c3b;color:#fff;font-size:14px;font-weight:750;line-height:1.45;
+ text-decoration:none;text-align:center;box-shadow:0 3px 8px #8e1f2c18;
+}
+.report-cta:hover,.public-inventory-link.report-cta:hover,.vehicle-content .vehicle-report.report-cta:hover {background:#ac2030;color:#fff;border-color:#8c1725;}
+.report-cta:focus-visible {outline:3px solid #2a6eaa;outline-offset:4px;}
+.fleet-intro-actions {display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:24px;}
+.fleet-intro-actions p {margin:0;font-size:12px;color:#52657a;}
+.vehicle-content .sheet-link {background:#edf2f6;color:#172c43;border-color:#cbd7e2;box-shadow:none;}
+.vehicle-content .sheet-link:hover {background:#dfe8ef;color:#172c43;}
+@media(max-width:600px){.fleet-intro-actions .report-cta,#reportSheet{width:100%;}.fleet-intro-actions{gap:10px;}.fleet-intro-actions p{font-size:11px;}}
+@media print {.fleet-intro-actions,.vehicle-report{display:none!important;}}

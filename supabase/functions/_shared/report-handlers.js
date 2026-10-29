@@ -46,7 +46,10 @@ export function createMailHandler({db,env,fetchImpl=fetch}){
  return async request=>{
  if(request.method!=='POST')return response(405,{error:'POST requis'});
  if(!await secretMatches(request.headers.get('x-report-worker-secret'),env('REPORT_WORKER_SECRET')))return response(401,{error:'Accès refusé'});
- if(env('REPORT_EMAIL_ENABLED')!=='true'||!env('RESEND_API_KEY')||!env('REPORT_EMAIL_FROM')||!env('PUBLIC_APP_URL'))return response(503,{error:'Notifications non activées ou configuration incomplète'});
+ const provider=env('REPORT_MAIL_PROVIDER')||'resend';
+ const gmailUrl=env('GMAIL_WEBAPP_URL');
+ const providerReady=provider==='gmail'?gmailUrl&&/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(gmailUrl)&&(env('GMAIL_WEBAPP_SECRET')||'').length>=32:provider==='resend'&&env('RESEND_API_KEY')&&env('REPORT_EMAIL_FROM');
+ if(env('REPORT_EMAIL_ENABLED')!=='true'||!providerReady||!env('PUBLIC_APP_URL'))return response(503,{error:'Notifications non activées ou configuration incomplète'});
  try{mailFor({reference:0,items:[],photos:[]},env('PUBLIC_APP_URL'));}catch{return response(503,{error:'URL publique invalide'});}
  const expired=await db.rpc('expire_inventory_report_mail');if(expired.error)return response(503,{error:'File indisponible'});
  const jobs=await db.rpc('claim_inventory_report_mail');if(jobs.error)return response(503,{error:'File indisponible'});
@@ -56,8 +59,13 @@ export function createMailHandler({db,env,fetchImpl=fetch}){
   try{
    const result=await db.from('inventory_reports').select('*').eq('id',job.report_id).single();if(result.error)throw Error('report');
    const mail=mailFor(result.data,env('PUBLIC_APP_URL'));
-   const email=await fetchImpl('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${env('RESEND_API_KEY')}`,'Content-Type':'application/json','Idempotency-Key':`inventory-report/${job.report_id}`},body:JSON.stringify({from:env('REPORT_EMAIL_FROM'),...mail}),signal:AbortSignal.timeout(15000)});
-   success=email.ok;errorCode=`provider_http_${email.status}`;
+   if(provider==='gmail'){
+    const email=await fetchImpl(gmailUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({secret:env('GMAIL_WEBAPP_SECRET'),id:job.report_id,subject:mail.subject,text:mail.text}),signal:AbortSignal.timeout(20000)});
+    if(email.ok){const result=await email.json();success=result.ok===true;errorCode='gmail_relay_failed';}else errorCode=`provider_http_${email.status}`;
+   }else{
+    const email=await fetchImpl('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${env('RESEND_API_KEY')}`,'Content-Type':'application/json','Idempotency-Key':`inventory-report/${job.report_id}`},body:JSON.stringify({from:env('REPORT_EMAIL_FROM'),...mail}),signal:AbortSignal.timeout(15000)});
+    success=email.ok;errorCode=`provider_http_${email.status}`;
+   }
   }catch{errorCode='transport_or_configuration_error';}
   const finished=await db.rpc('finish_inventory_report_mail',{p_report:job.report_id,p_lease:job.lease_id,p_success:success,p_error:success?null:errorCode});
   if(success&&!finished.error)sent++;else failed++;
