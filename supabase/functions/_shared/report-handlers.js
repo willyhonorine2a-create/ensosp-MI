@@ -6,14 +6,14 @@ async function limitedJSON(request){
  try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>8500000){await reader.cancel();throw Error('Envoi trop volumineux (trois photos de 2 Mo maximum)');}chunks.push(value);}}finally{reader.releaseLock();}
  const all=new Uint8Array(size);let position=0;for(const chunk of chunks){all.set(chunk,position);position+=chunk.length;}return JSON.parse(new TextDecoder().decode(all));
 }
-export function createSubmitHandler({db,env,fetchImpl=fetch}){
+export function createSubmitHandler({db,env}){
  const allowed=(env('REPORT_ALLOWED_ORIGINS')||'').split(',').map(s=>s.trim()).filter(Boolean);
  return async request=>{
  const origin=request.headers.get('origin');if(!allowed.includes(origin))return response(403,{error:'Origine non autorisée'});
  const cors={'Access-Control-Allow-Origin':origin,'Vary':'Origin','Access-Control-Allow-Headers':'content-type','Access-Control-Allow-Methods':'POST, OPTIONS'};
  if(request.method==='OPTIONS')return new Response(null,{status:204,headers:cors});
  if(request.method!=='POST')return response(405,{error:'Méthode non autorisée'},cors);
- if(!env('TURNSTILE_SECRET_KEY')||!env('REPORT_RATE_SECRET'))return response(503,{error:'Le service de signalement n’est pas encore activé.'},cors);
+ if(!env('REPORT_RATE_SECRET'))return response(503,{error:'Le service de signalement n’est pas encore activé.'},cors);
  let input,payload,photos;
  try{input=await limitedJSON(request);payload=validateSubmission(input);photos=payload.photos.map(decodePhoto);}catch(error){return response(400,{error:error.message||'Formulaire invalide'},cors);}
  const paths=[];let saveStarted=false;
@@ -23,10 +23,6 @@ export function createSubmitHandler({db,env,fetchImpl=fetch}){
   const ip=(request.headers.get('x-forwarded-for')||'unknown').split(',').at(-1).trim().slice(0,100);
   const digest=[...new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(ip)))].map(b=>b.toString(16).padStart(2,'0')).join('');
   const quota=await db.rpc('take_inventory_report_quota',{p_key:digest});if(quota.error)throw Error('quota');if(!quota.data)return response(429,{error:'Trop d’envois. Réessayez plus tard.'},cors);
-  if(typeof input.captchaToken!=='string'||input.captchaToken.length>2048||!input.captchaToken)return response(400,{error:'Veuillez valider la vérification anti-robot.'},cors);
-  const verification=await fetchImpl('https://challenges.cloudflare.com/turnstile/v0/siteverify',{method:'POST',body:new URLSearchParams({secret:env('TURNSTILE_SECRET_KEY'),response:input.captchaToken}),signal:AbortSignal.timeout(12000)});
-  if(!verification.ok)throw Error('captcha unavailable');const captcha=await verification.json();
-  if(captcha.success!==true||captcha.action!=='inventory-report'||captcha.hostname!==new URL(origin).hostname)return response(400,{error:'Vérification anti-robot expirée ou invalide. Recommencez.'},cors);
   const hash=await sha256(JSON.stringify(payload));
   const existing=await db.from('inventory_reports').select('reference,submission_hash').eq('request_id',payload.requestId).maybeSingle();if(existing.error)throw Error('lookup');
   if(existing.data){if(existing.data.submission_hash!==hash)return response(409,{error:'Cet envoi a changé. Rechargez le formulaire pour créer un nouveau signalement.'},cors);return response(200,{reference:existing.data.reference},cors);}

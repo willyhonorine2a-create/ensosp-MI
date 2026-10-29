@@ -56,17 +56,17 @@ function mockDB(){
  storage:{from:()=>({upload:async(path)=>{uploads.push(path);return {};},remove:async()=>({})})}};return db;
 }
 const origin='https://preview.example.test';
-const environment=key=>({REPORT_ALLOWED_ORIGINS:origin,TURNSTILE_SECRET_KEY:'test-secret',REPORT_RATE_SECRET:'test-rate',REPORT_WORKER_SECRET:'test-worker',RESEND_API_KEY:'fake-only',REPORT_EMAIL_FROM:'test@example.test',PUBLIC_APP_URL:origin,REPORT_EMAIL_ENABLED:'true'})[key];
+const environment=key=>({REPORT_ALLOWED_ORIGINS:origin,REPORT_RATE_SECRET:'test-rate',REPORT_WORKER_SECRET:'test-worker',RESEND_API_KEY:'fake-only',REPORT_EMAIL_FROM:'test@example.test',PUBLIC_APP_URL:origin,REPORT_EMAIL_ENABLED:'true'})[key];
 const post=(body,requestOrigin=origin)=>new Request('https://function.example.test',{method:'POST',headers:{origin:requestOrigin,'Content-Type':'application/json','x-forwarded-for':'192.0.2.1'},body:JSON.stringify(body)});
-test('fonction publique : CAPTCHA obligatoire, origine, panne réseau et enregistrement sans mail navigateur',async()=>{
- const db=mockDB(),fetches=[];const handler=createSubmitHandler({db,env:environment,fetchImpl:async(url)=>{fetches.push(url);return Response.json({success:true,hostname:'preview.example.test',action:'inventory-report'});}});
+test('fonction publique sans CAPTCHA : origine, piège robot, quota, panne et rejeu sans doublon',async()=>{
+ const db=mockDB();const handler=createSubmitHandler({db,env:environment});
  assert.equal((await handler(post(input(),'https://intrus.test'))).status,403);
- assert.equal((await handler(post(input()))).status,400);assert.equal(db.saved.length,0);
- const result=await handler(post({...input(),captchaToken:'test'}));assert.equal(result.status,200);assert.equal((await result.json()).reference,42);assert.equal(db.saved.length,1);assert.equal(db.saved[0].p_vehicle_id,'fpt-18');assert.ok(fetches.every(url=>url.includes('turnstile')));
- db.existing={reference:42,submission_hash:await sha256(JSON.stringify(validateSubmission(input())))};const repeated=await handler(post({...input(),captchaToken:'new-token'}));assert.equal(repeated.status,200);assert.equal(db.saved.length,1);db.existing=null;
- const unavailable=createSubmitHandler({db,env:environment,fetchImpl:async()=>{throw Error('network');}});assert.equal((await unavailable(post({...input(),captchaToken:'test'}))).status,503);
- const disabled=createSubmitHandler({db,env:()=>undefined});assert.equal((await disabled(post(input()))).status,403);
- const invalidCaptcha=createSubmitHandler({db,env:environment,fetchImpl:async()=>Response.json({success:true,hostname:'intrus.test',action:'inventory-report'})});assert.equal((await invalidCaptcha(post({...input(),captchaToken:'test'}))).status,400);
+ assert.equal((await handler(post({...input(),website:'robot.example'}))).status,400);assert.equal(db.saved.length,0);
+ const result=await handler(post(input()));assert.equal(result.status,200);assert.equal((await result.json()).reference,42);assert.equal(db.saved.length,1);assert.equal(db.saved[0].p_vehicle_id,'fpt-18');
+ db.existing={reference:42,submission_hash:await sha256(JSON.stringify(validateSubmission(input())))};const repeated=await handler(post(input()));assert.equal(repeated.status,200);assert.equal(db.saved.length,1);db.existing=null;
+ const failing=mockDB();failing.rpc=async()=>({error:{message:'database unavailable'}});const unavailable=createSubmitHandler({db:failing,env:environment});assert.equal((await unavailable(post(input()))).status,503);
+ const limited=mockDB();limited.rpc=async()=>({data:false});assert.equal((await createSubmitHandler({db:limited,env:environment})(post(input()))).status,429);assert.equal(limited.saved.length,0);
+ const disabled=createSubmitHandler({db,env:key=>key==='REPORT_RATE_SECRET'?undefined:environment(key)});assert.equal((await disabled(post(input()))).status,503);
 });
 test('worker mail : secret requis, destinataire fixe, idempotence fournisseur, erreurs conservées pour reprise',async()=>{
  const db=mockDB(),sent=[];const handler=createMailHandler({db,env:environment,fetchImpl:async(url,options)=>{sent.push({url,options});return new Response('',{status:503});}});

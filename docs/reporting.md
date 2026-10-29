@@ -20,24 +20,22 @@
 
 ## Activation dans Supabase de TEST
 
-Le code du formulaire seul ne suffit pas : les fonctions serveur, le CAPTCHA et
+Le code du formulaire seul ne suffit pas : les fonctions serveur et
 la base doivent être configurés. Aucun déploiement distant ni envoi de mail n’a
 été exécuté par la livraison du code. Ne pas utiliser le projet de production.
 
 1. Après les migrations existantes 001 à 024, exécuter **025_inventory_reports.sql**
    puis **026_inventory_report_photos.sql** dans SQL Editor. Elles créent les tables
    privées, la file de notifications et le bucket privé. Aucune table temporaire.
-2. Créer un widget Cloudflare Turnstile, autoriser le domaine exact de la preview
-   de test et définir `PUBLIC_TURNSTILE_SITE_KEY` pour le build Vercel de **Preview**
-   seulement. C’est une clé publique. Le formulaire affiche « en préparation » et
-   n’envoie rien tant que cette valeur manque. Les domaines dynamiques de nouvelles
-   previews doivent être ajoutés explicitement, côté Turnstile et côté fonction.
+2. Le formulaire est public et ne nécessite aucun CAPTCHA ou compte Cloudflare.
+   Les limites d’envoi, le champ invisible, les contrôles de taille et la protection
+   contre les doublons restent appliqués côté serveur. Sans CAPTCHA, les protections
+   sont moins résistantes aux robots ; surveiller les remontées après ouverture.
 3. Dans les secrets des Edge Functions du projet de test, renseigner :
 
 | Nom | Usage |
 | --- | --- |
 | `REPORT_ALLOWED_ORIGINS` | Origines HTTPS exactes, séparées par des virgules, sans chemin ni slash final ; pas de `*`. |
-| `TURNSTILE_SECRET_KEY` | Clé secrète du widget Turnstile. |
 | `REPORT_RATE_SECRET` | Secret aléatoire d’au moins 32 caractères pour anonymiser les limites d’envoi. |
 | `REPORT_WORKER_SECRET` | Autre secret aléatoire d’au moins 32 caractères, utilisé uniquement par le planificateur. |
 | `REPORT_EMAIL_ENABLED` | `false` tant que la recette et le choix de l’expéditeur ne sont pas terminés ; `true` pour activer les mails. |
@@ -59,7 +57,7 @@ supabase functions deploy report-notifications --project-ref jdxfwetfdekwxposowy
 ```
 
 `supabase/config.toml` désactive la vérification JWT de la passerelle pour ces deux
-fonctions. La première vérifie elle-même l’origine, Turnstile, les tailles et les
+fonctions. La première vérifie elle-même l’origine, le champ invisible, les tailles et les
 limites d’envoi. La seconde exige `x-report-worker-secret`. Aucune RPC de dépôt ou
 de file mail n’est exécutable avec les clés anon/authenticated.
 
@@ -93,8 +91,7 @@ ne téléverse rien directement dans Storage. Les signalements et leurs photos
 ne sont pas listables publiquement. Le service limite les tentatives à dix par
 heure et par clé réseau anonymisée, et cent par heure globalement. Il suppose que
 la passerelle Supabase fixe le dernier saut de `x-forwarded-for` ; vérifier ce
-comportement avant activation. Turnstile reste obligatoire, y compris pour les
-comptes connectés. Les adresses IP brutes ne sont pas enregistrées.
+comportement avant activation. Aucun service CAPTCHA n’est appelé. Les adresses IP brutes ne sont pas enregistrées.
 
 La politique de conservation doit être fixée par le gestionnaire avant ouverture
 au public. Aucune suppression automatique de l’historique n’est activée. Après une
@@ -120,7 +117,7 @@ est possible. Aucune modification du formulaire Microsoft n’a été effectuée
 ## Recette requise avant ouverture
 
 1. Tester un engin avec fiche et un engin sans fiche, puis plusieurs matériels.
-2. Envoyer avec Turnstile sur la preview de test, vérifier le numéro et la ligne
+2. Envoyer sans CAPTCHA sur la preview de test, vérifier le numéro et la ligne
    Supabase ; simuler une coupure et réessayer sans fermer la page.
 3. Vérifier qu’un visiteur et un lecteur ne voient ni coordonnées ni photos.
 4. Depuis un administrateur, traiter, commenter, résoudre et consulter l’historique.
@@ -128,7 +125,7 @@ est possible. Aucune modification du formulaire Microsoft n’a été effectuée
    générique et lien administrateur, puis simuler un échec fournisseur et sa reprise.
 6. Scanner le QR depuis un téléphone. Choisir l’URL durable avant impression.
 
-Les tests automatisés utilisent PostgreSQL/PGlite et des réponses Turnstile/Resend
+Les tests automatisés utilisent PostgreSQL/PGlite et des réponses de service mail
 simulées. Ils ne prouvent ni le déploiement des Edge Functions, ni les droits DNS,
 ni la livraison réelle d’un mail. Aucun déploiement de production n’est autorisé
 par cette livraison.
@@ -145,7 +142,7 @@ avec l’éditeur, et nommer la première **inventory-report**. Remplacer tout l
 contenu du fichier `index.ts` proposé par celui de la version autonome correspondante,
 puis déployer. Faire de même pour **report-notifications**. Désactiver pour chacune
 la vérification JWT de la passerelle dans les paramètres : le dépôt public vérifie
-Turnstile et l’origine, et le worker exige son secret dédié. Le service reste
+le champ invisible, les quotas et l’origine, et le worker exige son secret dédié. Le service reste
 inactif tant que les secrets décrits plus haut ne sont pas configurés.
 
 Les variables `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` sont déjà injectées
@@ -161,3 +158,17 @@ node scripts/prepare_edge_editor.mjs
 
 Le déploiement par l’éditeur ne constitue pas une vérification du formulaire ni
 de l’envoi mail : poursuivre la configuration et la recette de test ci-dessus.
+
+## Passage de la version Turnstile à la version sans CAPTCHA
+
+Remplacer le code de la fonction Supabase **inventory-report** avec la version
+autonome actuelle de `docs/deploiement/inventory-report.ts`, puis déployer.
+La fonction **report-notifications** ne change pas. Aucune migration SQL
+supplémentaire n’est nécessaire. La preview doit également utiliser le dernier
+commit de develop pour que le formulaire n’attende plus le widget.
+
+`TURNSTILE_SECRET_KEY` et `PUBLIC_TURNSTILE_SITE_KEY`, si elles avaient été
+créées, ne sont plus utilisées. Ne pas toucher aux secrets nécessaires aux
+notifications. Les deux réglages encore nécessaires au dépôt sont
+`REPORT_ALLOWED_ORIGINS` et `REPORT_RATE_SECRET` dans Supabase Edge Functions
+Secrets. Le service refuse les envois tant qu’ils ne sont pas configurés.

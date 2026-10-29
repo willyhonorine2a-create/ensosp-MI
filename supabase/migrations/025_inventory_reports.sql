@@ -44,7 +44,7 @@ create policy report_mail_admin_read on public.inventory_report_mail for select 
 grant all on public.inventory_reports,public.inventory_report_events,public.inventory_report_mail,public.inventory_report_limits to service_role;
 grant usage,select on sequence public.inventory_reports_reference_seq,public.inventory_report_events_id_seq to service_role;
 
--- Aucune écriture publique directe : seul le serveur vérifie le CAPTCHA et appelle ces RPC.
+-- Aucune écriture publique directe : seul le serveur contrôle les envois et appelle ces RPC.
 create function public.take_inventory_report_quota(p_key text)
 returns boolean language plpgsql security definer set search_path='' as $$
 declare n integer; stamp text:=to_char(now() at time zone 'UTC','YYYY-MM-DD-HH');

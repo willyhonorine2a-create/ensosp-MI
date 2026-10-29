@@ -68,7 +68,7 @@ async function limitedJSON(request) {
   }
   return JSON.parse(new TextDecoder().decode(all));
 }
-function createSubmitHandler({ db: db2, env: env2, fetchImpl = fetch }) {
+function createSubmitHandler({ db: db2, env: env2 }) {
   const allowed = (env2("REPORT_ALLOWED_ORIGINS") || "").split(",").map((s) => s.trim()).filter(Boolean);
   return async (request) => {
     const origin = request.headers.get("origin");
@@ -76,7 +76,7 @@ function createSubmitHandler({ db: db2, env: env2, fetchImpl = fetch }) {
     const cors = { "Access-Control-Allow-Origin": origin, "Vary": "Origin", "Access-Control-Allow-Headers": "content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (request.method !== "POST") return response(405, { error: "M\xE9thode non autoris\xE9e" }, cors);
-    if (!env2("TURNSTILE_SECRET_KEY") || !env2("REPORT_RATE_SECRET")) return response(503, { error: "Le service de signalement n\u2019est pas encore activ\xE9." }, cors);
+    if (!env2("REPORT_RATE_SECRET")) return response(503, { error: "Le service de signalement n\u2019est pas encore activ\xE9." }, cors);
     let input, payload, photos;
     try {
       input = await limitedJSON(request);
@@ -94,11 +94,6 @@ function createSubmitHandler({ db: db2, env: env2, fetchImpl = fetch }) {
       const quota = await db2.rpc("take_inventory_report_quota", { p_key: digest });
       if (quota.error) throw Error("quota");
       if (!quota.data) return response(429, { error: "Trop d\u2019envois. R\xE9essayez plus tard." }, cors);
-      if (typeof input.captchaToken !== "string" || input.captchaToken.length > 2048 || !input.captchaToken) return response(400, { error: "Veuillez valider la v\xE9rification anti-robot." }, cors);
-      const verification = await fetchImpl("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: new URLSearchParams({ secret: env2("TURNSTILE_SECRET_KEY"), response: input.captchaToken }), signal: AbortSignal.timeout(12e3) });
-      if (!verification.ok) throw Error("captcha unavailable");
-      const captcha = await verification.json();
-      if (captcha.success !== true || captcha.action !== "inventory-report" || captcha.hostname !== new URL(origin).hostname) return response(400, { error: "V\xE9rification anti-robot expir\xE9e ou invalide. Recommencez." }, cors);
       const hash = await sha256(JSON.stringify(payload));
       const existing = await db2.from("inventory_reports").select("reference,submission_hash").eq("request_id", payload.requestId).maybeSingle();
       if (existing.error) throw Error("lookup");

@@ -11,7 +11,6 @@ await build({entryPoints:['src/inventory-app.js'],bundle:true,format:'esm',targe
 await build({entryPoints:['src/report-app.js'],bundle:true,format:'esm',target:'es2022',outfile:'dist/signalement/app.js',minify:true});
 await build({entryPoints:['src/reports-admin.js'],bundle:true,format:'esm',target:'es2022',outfile:'dist/signalements/app.js',minify:true});
 const reportConfig=JSON.parse(await readFile('public/signalement/config.json','utf8'));
-if(process.env.PUBLIC_TURNSTILE_SITE_KEY)reportConfig.turnstileSiteKey=process.env.PUBLIC_TURNSTILE_SITE_KEY;
 if(process.env.PUBLIC_REPORT_FORM_URL)reportConfig.publicFormUrl=process.env.PUBLIC_REPORT_FORM_URL;
 await writeFile('dist/signalement/config.json',JSON.stringify(reportConfig));
 console.log('Build terminé : dist/');
